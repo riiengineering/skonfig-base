@@ -45,11 +45,18 @@ in
 		__package timezone
 		export require=__package/timezone
 		;;
+	(slackware)
+		__package glibc-zoneinfo
+		export require=__package/glibc-zoneinfo
+		;;
 esac
 
 # configure the timezone
 case ${os}
 in
+	(slackware)
+		test -n "${zoneinfo_file}" || invalid_timezone
+		;;
 	(alpine|coreos|debian|devuan|ubuntu)
 		test -n "${zoneinfo_file}" || invalid_timezone
 
