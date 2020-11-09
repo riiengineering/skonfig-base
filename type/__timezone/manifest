@@ -154,6 +154,32 @@ in
 		${TZ}
 		EOF
 		;;
+	(openwrt)
+		tzdata=$(awk -F'\t' -v TZ="${TZ}" '$1==TZ{print $2}' \
+			"${__type:?}/files/openwrt/tzdata.tsv")
+
+		test -n "${tzdata}" || invalid_timezone
+
+		__uci system.@system[0].zonename --value "${TZ}"
+			# --transaction timezone
+		__uci system.@system[0].timezone --value "${tzdata}"
+			# --transaction timezone
+
+		if test -n "${zoneinfo_file}"
+		then
+			localtime_file=/tmp/localtime
+			__file /tmp/TZ --state absent
+		else
+			__file /tmp/TZ \
+				--source - <<-EOF
+			${tzdata}
+			EOF
+
+			# NOTE: Skip creation of localtime link, since timezones are not
+			#       installed on target.
+			exit 0
+		fi
+		;;
 	(solaris)
 		# tzreload is available starting with Solaris 10 u9, but apparently a
 		# reboot it is still required after changing the timezone.
