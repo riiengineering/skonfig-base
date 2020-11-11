@@ -139,6 +139,17 @@ in
 
       echo "${devuan_version}"
       ;;
+   (dsm)
+      # e.g. 6.2.3-25426 Update 3
+      (
+         # shellcheck source=/dev/null
+         . /etc/VERSION &&
+         printf '%s%s%s\n' \
+            "${productversion:-0.0}" \
+            "${buildnumber:+-${buildnumber}}" \
+            "${smallfixnumber:+ Update ${smallfixnumber}}"
+      )
+      ;;
    (fedora)
       sed -e 's/^Fedora\( Core\)* release \(.*\) (.*)$/\2/' /etc/fedora-release
       ;;
