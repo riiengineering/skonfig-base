@@ -32,9 +32,30 @@ joinlines() { sed -n -e H -e "\${x;s/^\\n//;s/\\n/${1:?}/g;p;}"; }
 trlower() { tr '[:upper:]' '[:lower:]'; }
 tolower() { printf '%s' "$*" | trlower; }
 
+command -v sshd >/dev/null 2>&1 || {
+	echo 'Cannot find sshd(8).' >&2
+	exit 1
+}
+# NOTE: even if -V is an invalid option (OpenSSH < 9.2) it allows execution of
+#       sshd without using an absolute path, and more importantly it will
+#       not start an actual SSH daemon.
+#       When -V is not supported, we extract the version number from the
+#       usage message.
+openssh_version=$(
+	sshd -V 2>&1 \
+	| sed -n -e 's/^\(sshd version \)\{0,1\}OpenSSH_\([^, ]*\).*$/\2/p')
+
 default_value() {
 	sshd -T -f /dev/null -C "${sshd_conn_spec}" \
 	| sed -n -e 's/^'"$(tolower "${1:?}")"'[[:blank:]]\{1,\}//p'
+}
+
+is_sshd_version_ge() {
+	# This function only compares the numeric parts of the version number!
+	printf '%s\n' "${openssh_version%%[!0-9.]*}" "${1%%[!0-9.]*}" \
+	| sort -t . -k 1,1n -k 2,2n -k 3,3n \
+	| head -n1 \
+	| grep -qxF -e "${1%%[!0-9.]*}"
 }
 
 sshd_conn_spec=$(
@@ -45,13 +66,34 @@ sshd_conn_spec=$(
 		_match_file=/dev/null
 	fi
 
-	for _kw in \
-		addr=Address \
-		user=User \
-		host=Host \
-		laddr=LocalAddress \
-		lport=LocalPort \
-		rdomain=RDomain
+	set --
+	if is_sshd_version_ge 4.4
+	then
+		# Match blocks in sshd_config(5) have been added in OpenSSH 4.4
+		set -- "$@" \
+			addr=Address \
+			user=User \
+			host=Host
+	elif test -s "${__object:?}/parameter/match"
+	then
+		echo 'OpenSSH installed on the target does not support --match.' >&2
+		exit 1
+	fi
+
+	if is_sshd_version_ge 6.1
+	then
+		set -- "$@" \
+			laddr=LocalAddress \
+			lport=LocalPort
+	fi
+
+	if is_sshd_version_ge 7.7
+	then
+		set -- "$@" \
+			rdomain=RDomain
+	fi
+
+	for _kw in "$@"
 	do
 		_specname=${_kw%%=*}
 		_confname=$(tolower "${_kw#*=}")
@@ -77,7 +119,7 @@ sshd_conn_spec=$(
 		esac
 	done \
 	| joinlines ','
-)
+) || exit
 
 sshd_config_file=$("${__type_explorer:?}/config_file")
 state_should=$(cat "${__object:?}/parameter/state")
@@ -91,11 +133,6 @@ fi
 
 { read -r value_should <"${__object:?}/parameter/value"; } 2>/dev/null \
 || test "${state_should}" = absent || exit 0  # param optional if --state absent
-
-command -v sshd >/dev/null 2>&1 || {
-	echo 'Cannot find sshd.' >&2
-	exit 1
-}
 
 test -e "${sshd_config_file}" || {
 	echo 'absent'
