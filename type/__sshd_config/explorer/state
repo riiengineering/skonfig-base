@@ -32,7 +32,10 @@ joinlines() { sed -n -e H -e "\${x;s/^\\n//;s/\\n/${1:?}/g;p;}"; }
 trlower() { tr '[:upper:]' '[:lower:]'; }
 tolower() { printf '%s' "$*" | trlower; }
 
-command -v sshd >/dev/null 2>&1 || {
+# NOTE: Old versions of sshd(8) don't allow to be executed from PATH even if
+#       just for checking the config file's syntax.
+#       So while checking for sshd's presence also extract its path.
+sshd=$(command -v sshd 2>/dev/null) || {
 	echo 'Cannot find sshd(8).' >&2
 	exit 1
 }
@@ -46,7 +49,7 @@ openssh_version=$(
 	| sed -n -e 's/^\(sshd version \)\{0,1\}OpenSSH_\([^, ]*\).*$/\2/p')
 
 default_value() {
-	sshd -T -f /dev/null -C "${sshd_conn_spec}" \
+	"${sshd:?}" -T -f /dev/null -C "${sshd_conn_spec}" \
 	| sed -n -e 's/^'"$(tolower "${1:?}")"'[[:blank:]]\{1,\}//p'
 }
 
@@ -149,13 +152,13 @@ test -d "${__object:?}/files" || mkdir "${__object:?}/files"
 } >"${__object:?}/files/optline.tmp"
 
 value_is=$(
-	sshd -T -f "${sshd_config_file}" -C "${sshd_conn_spec}" \
+	"${sshd:?}" -T -f "${sshd_config_file}" -C "${sshd_conn_spec}" \
 	| sed -n -e 's/^'"$(tolower "${option_name}")"'[[:blank:]]\{1,\}//p')
 # convert given value to the value reported by sshd -T (this is required to
 # compare values with different names, e.g. prohibit-password or delta values
 # like "Ciphers -md5")
 value_should=$(
-	sshd -T -f "${__object:?}/files/optline.tmp" -C "${sshd_conn_spec}" \
+	"${sshd:?}" -T -f "${__object:?}/files/optline.tmp" -C "${sshd_conn_spec}" \
 	| sed -n -e 's/^'"$(tolower "${option_name}")"'[[:blank:]]\{1,\}//p')
 rm "${__object:?}/files/optline.tmp"
 
