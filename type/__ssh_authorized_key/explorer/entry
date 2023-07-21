@@ -21,10 +21,13 @@
 # Print sorted lines from --file where the type and key match --key.
 #
 
+file=$(cat "${__object:?}/parameter/file")
+test -e "${file}" || exit 0
+
 # extract the keytype and base64 encoded key ignoring any options and comment
 type_and_key=$(
 	awk <"${__object:?}/parameter/key" '
-	!/^(ssh|ecdsa|sk)-/ && /.(ssh|ecdsa|sk)-[^ ]+/ {
+	/.(ssh|ecdsa|sk)-[^ ]+/ {
 		# collapse quoted sections (quotes cannot be nested as per OpenSSH code)
 		gsub(/".*[^\\]"/, "\"\"")
 		# remove options ($1)
@@ -35,9 +38,6 @@ type_and_key=$(
 		exit  # only print first key of file
 	}'
 )
-
-file=$(cat "${__object:?}/parameter/file")
-test -e "${file}" || exit 0
 
 # get entries which match the type and key
 
