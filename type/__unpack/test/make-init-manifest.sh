@@ -1,13 +1,13 @@
 #!/bin/sh -e
 
 p="$( pwd )"
-d=/tmp/cdist__unpack_test
+d=/tmp/skonfig__unpack_test
 
 echo 'export CDIST_ORDER_DEPENDENCY=1'
 
 echo "__directory $d"
 
-find "$p" -name 'test.*' -and -not -name '*.cdist__unpack_sum' \
+find "$p" -name 'test.*' -and -not -name '*.skonfig__unpack_sum' \
     | sort \
     | while read -r l
 do

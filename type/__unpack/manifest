@@ -33,7 +33,7 @@ in
         case ${os}
         in
             (freebsd)
-                # bzip2 is part of freebsd base system
+                # bzip2 is part of FreeBSD base system
                 ;;
             (*)
                 __package bzip2

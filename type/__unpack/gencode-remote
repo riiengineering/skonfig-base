@@ -20,7 +20,11 @@
 # along with skonfig-base. If not, see <http://www.gnu.org/licenses/>.
 #
 
-quote() { printf '%s\n' "$*" | sed "s/'/'\\\\''/g;1s/^/'/;\$s/\$/'/"; }
+shquot() {
+sed -e "s/'/'\\\\''/g" -e "1s/^/'/" -e "\$s/\$/'/" <<-EOF
+$*
+EOF
+}
 
 if grep -q -x -e 'missing' -e 'match' "${__object:?}/explorer/state"
 then
@@ -31,14 +35,15 @@ os=$(cat "${__global:?}/explorer/os")
 
 src="/${__object_id:?}"
 
-dst=$(sed 's/\/$//' "${__object:?}/parameter/destination")
+dst=$(sed 's|/$||' "${__object:?}/parameter/destination")
 
 cmd=''
 
 case ${src}
 in
+    # https://git.savannah.gnu.org/cgit/tar.git/tree/src/suffix.c?h=release_1_34#n29
     (*.tar|*.tgz|*.tar.*|*.txz|*.tbz2)
-        cmd="mkdir -p '${dst}' && tar --directory='${dst}' --extract --file='${src}'"
+        cmd="mkdir -p $(shquot "${dst}") && tar --directory=$(shquot "${dst}") --extract --file=$(shquot "${src}")"
 
         if [ -f "${__object:?}/parameter/tar-strip" ]
         then
@@ -65,47 +70,49 @@ in
                 ;;
         esac
 
-        cmd="${cmd} e -aoa -o'${dst}' '${src}'"
+        cmd="${cmd} e -aoa -o$(shquot "${dst}") $(shquot "${src}")"
         ;;
     (*.bz2)
-        cmd="bunzip2 --stdout '${src}' >'${dst}'"
+        cmd="bunzip2 --stdout $(shquot "${src}") >$(shquot "${dst}")"
         ;;
     (*.gz)
-        cmd="gunzip --stdout '${src}' >'${dst}'"
+        cmd="gunzip --stdout $(shquot "${src}") >$(shquot "${dst}")"
         ;;
     (*.lzma|*.xz)
-        cmd="xz --uncompress --stdout '${src}' >'${dst}'"
+        cmd="xz --uncompress --stdout $(shquot "${src}") >$(shquot "${dst}")"
         ;;
     (*.rar)
-        cmd="unrar x -o+ '${src}' '${dst}/'"
+        cmd="unrar x -o+ $(shquot "${src}") $(shquot "${dst}/")"
         ;;
     (*.zip)
-        cmd="unzip -o '${src}' -d '${dst}'"
+        cmd="unzip -o $(shquot "${src}") -d $(shquot "${dst}")"
         ;;
 esac
 
 if [ -f "${__object:?}/parameter/backup-destination" ]
 then
-    backup_dst="${dst:?}.cdist__unpack_backup_$(date +%s)"
-    echo "if [ -e $(quote "${dst}") ]; then mv $(quote "${dst}") $(quote "${backup_dst}"); fi"
+    backup_dst="${dst:?}.skonfig__unpack_backup_$(date +%s)"
+    printf 'if [ -e %s ]; then mv %s %s; fi\n' \
+        "$(shquot "${dst}")" "$(shquot "${dst}")" "$(shquot "${backup_dst}")"
     printf 'backed up %s to %s\n' "${dst}" "${backup_dst}" >>"${__messages_out:?}"
 fi
 
-echo "${cmd}"
+printf '%s\n' "${cmd}"
 printf 'unpacked to %s\n' "${dst}" >>"${__messages_out:?}"
 
 if [ -f "${__object:?}/parameter/sum-file" ]
 then
     sum_file=$(cat "${__object:?}/parameter/sum-file")
 else
-    sum_file="${src}.cdist__unpack_sum"
+    sum_file="${src}.skonfig__unpack_sum"
 fi
 
-echo "cksum '${src}' | awk '{ print \$1\$2 }' >'${sum_file}'"
+printf "cksum %s | awk '{ print \$1\$2 }' >%s\\n" \
+    "$(shquot "${src}")" "$(shquot "${sum_file}")"
 
 if [ ! -f "${__object:?}/parameter/preserve-archive" ]
 then
-    echo "rm -f '${src}'"
+    printf 'rm -f %s\n' "$(shquot "${src}")"
     printf 'removed archive %s\n' "${src}" >>"${__messages_out:?}"
 fi
 
