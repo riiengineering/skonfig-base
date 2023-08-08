@@ -2,7 +2,7 @@
 #
 # 2020 Ander Punnar (ander at kvlt.ee)
 # 2022 Travis Paul (tr at vispaul.me)
-# 2023 Dennis Camera (dennis.camera at riiengineering.ch)
+# 2023,2025 Dennis Camera (dennis.camera at riiengineering.ch)
 #
 # This file is part of skonfig-base.
 #
@@ -20,20 +20,122 @@
 # along with skonfig-base. If not, see <http://www.gnu.org/licenses/>.
 #
 
+version_ge() {
+    # usage: version_ge version_is min_version_expected
+    #
+    # compares two version numbers (up to three numeric components separated
+    # with dots)
+    # returns 0 if `version_is` >= `min_version_expected`, 1 otherwise.
+    #
+    # NOTES: if the lowest value of the two version numbers is equal to
+    #        `min_version_expected`, `version_is` must be the same or larger.
+    #        `-k n,n` instead of `-k n` is required for some sort(1)s.
+    printf '%s\n' "$1" "$2" \
+    | sort -t. -n -k1,1 -k2,2 -k3,3 \
+    | { read -r _x; test "${_x}" = "$2"; }
+}
+
 os=$(cat "${__global:?}/explorer/os")
 
 src="/${__object_id:?}"
+dst=$(sed 's|/$||' "${__object:?}/parameter/destination")
+
+mkdir "${__object:?}/files"
+
+case ${src}
+in
+    (*.tar|*.tar.*|*.t??|*.t???)
+        # require tar to unpack tar
+        case ${os}
+        in
+            (gentoo)
+                __package app-arch/tar
+                ;;
+            (openwrt)
+                # OpenWrt ships BusyBox tar in the base system
+                ;;
+            (*)
+                __package tar
+                ;;
+        esac
+        ;;
+esac
 
 case ${src}
 in
     (*.7z)
-        __package p7zip
+        case ${os}
+        in
+            (alpine|debian|devuan|ubuntu)
+                os_version=$(cat "${__global:?}/explorer/os_version")
+                case ${os}
+                in
+                    (alpine)
+                        distro_7z_min=3.17 ;;
+                    (debian)
+                        distro_7z_min=12 ;;
+                    (devuan)
+                        distro_7z_min=5 ;;
+                    (ubuntu)
+                        distro_7z_min=22.04 ;;
+                esac
+
+                if version_ge "${os_version}" "${distro_7z_min}"
+                then
+                    __package 7zip
+                    cmd=7zz
+                else
+                    __package p7zip
+                    cmd=7zr
+                fi
+                ;;
+            (aix|centos|almalinux|eurolinux|rocky|fedora|redhat)
+                __package p7zip
+                cmd=7za
+                ;;
+            (freebsd|netbsd)
+                __package 7-zip
+                cmd=7zz
+                ;;
+            (gentoo)
+                __package app-arch/7zip
+                cmd=7zz
+                ;;
+            (openwrt)
+                echo 'the 7z format is not supported on OpenWrt' >&2
+                exit 1
+                ;;
+            (openbsd|*)
+                __package p7zip
+                cmd=7zr
+                ;;
+        esac
+
+        printf '%s e -aoa -o%s %s\n' \
+            "${cmd:?}" \
+            "$(shquot "${dst}")" \
+            "$(shquot "${src}")" \
+        >"${__object:?}/files/extract-cmd"
+        ;;
+    (*.gz|*.tgz)
+        case ${os}
+        in
+            (gentoo)
+                __package app-arch/gzip
+                ;;
+            (*)
+                __package gzip
+                ;;
+        esac
         ;;
     (*.bz2|*.tbz2)
         case ${os}
         in
             (freebsd)
                 # bzip2 is part of FreeBSD base system
+                ;;
+            (gentoo)
+                __package app-arch/bzip2
                 ;;
             (*)
                 __package bzip2
@@ -46,7 +148,10 @@ in
             (debian|ubuntu|devuan)
                 __package xz-utils
                 ;;
-            (alpine|centos|almalinux|eurolinux|rocky)
+            (gentoo)
+                __package app-arch/xz-utils
+                ;;
+            (alpine|centos|almalinux|eurolinux|rocky|openwrt)
                 __package xz
                 ;;
         esac
@@ -54,12 +159,33 @@ in
     (*.rar)
         case ${os}
         in
-            (debian|ubuntu|devuan|alpine|freebsd)
+            (gentoo)
+                __package app-arch/unrar
+                ;;
+            (*)
                 __package unrar
                 ;;
         esac
+
+        printf 'unrar x -o+ %s %s\n' \
+            "$(shquot "${src}")" \
+            "$(shquot "${dst}/")" \
+        >"${__object:?}/files/extract-cmd"
         ;;
     (*.zip)
-        __package unzip
+        case ${os}
+        in
+            (gentoo)
+                __package app-arch/unzip
+                ;;
+            (*)
+                __package unzip
+                ;;
+        esac
+
+        printf 'unzip -o %s -d %s\n' \
+            "$(shquot "${src}")" \
+            "$(shquot "${dst}")" \
+        >"${__object:?}/files/extract-cmd"
         ;;
 esac
