@@ -62,11 +62,41 @@ in
     (*.bz2)
         cmd="bunzip2 --stdout $(shquot "${src}") >$(shquot "${dst}")"
         ;;
+    (*.cpio)
+        cmd="cd $(shquot "${dst}") && cpio -i <$(shquot "${src}")"
+        ;;
     (*.gz)
         cmd="gunzip --stdout $(shquot "${src}") >$(shquot "${dst}")"
         ;;
     (*.lzma|*.xz)
         cmd="xz --uncompress --stdout $(shquot "${src}") >$(shquot "${dst}")"
+        ;;
+    (*.pax)
+        cmd="cd $(shquot "${dst}") && pax -r <$(shquot "${src}")"
+        ;;
+    (*.rar)
+        cmd="unrar x -o+ $(shquot "${src}") $(shquot "${dst}/")"
+        ;;
+    (*.xar)
+        cmd="xar -C $(shquot "${dst}") -xf $(shquot "${src}")"
+        ;;
+    (*.Z)
+        case ${os}
+        in
+            (alpine)
+                # use gzip(1)
+                cmd="cd $(shquot "${dst}") && gunzip -k $(shquot "${src}")"
+                ;;
+            (*)
+                cmd="cd $(shquot "${dst}") && uncompress -f -k -- $(shquot "${src}")"
+                ;;
+        esac
+        ;;
+    (*.zip)
+        cmd="unzip -o $(shquot "${src}") -d $(shquot "${dst}")"
+        ;;
+    (*.zstd)
+        cmd="zstd -d <$(shquot "${src}") >$(shquot "${dst}")"
         ;;
     (*)
         cat "${__object:?}/files/extract-cmd"

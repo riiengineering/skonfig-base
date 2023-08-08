@@ -51,6 +51,9 @@ in
             (gentoo)
                 __package app-arch/tar
                 ;;
+            (aix|netbsd)
+                # part of the base system
+                ;;
             (openwrt)
                 # OpenWrt ships BusyBox tar in the base system
                 ;;
@@ -117,9 +120,33 @@ in
             "$(shquot "${src}")" \
         >"${__object:?}/files/extract-cmd"
         ;;
+    (*.cpio)
+        case ${os}
+        in
+            (gentoo)
+                __package app-arch/cpio
+                ;;
+            (aix|freebsd|netbsd|openbsd)
+                # part of the base system
+                ;;
+            (openwrt)
+                echo 'the cpio format is not supported on OpenWrt' >&2
+                exit 1
+                ;;
+            (*)
+                __package cpio
+                ;;
+        esac
+        ;;
     (*.gz|*.tgz)
         case ${os}
         in
+            (alpine|openwrt)
+                # use BusyBox gzip(1)
+                ;;
+            (aix|freebsd|netbsd|openbsd)
+                # part of the base system
+                ;;
             (gentoo)
                 __package app-arch/gzip
                 ;;
@@ -131,9 +158,9 @@ in
     (*.bz2|*.tbz2)
         case ${os}
         in
-            (freebsd)
-                # bzip2 is part of FreeBSD base system
-                ;;
+            (aix|freebsd|netbsd)
+                # part of the base system
+            ;;
             (gentoo)
                 __package app-arch/bzip2
                 ;;
@@ -145,14 +172,31 @@ in
     (*.lzma|*.xz|*.txz)
         case ${os}
         in
+            (alpine|centos|almalinux|eurolinux|rocky|openbsd|openwrt)
+                __package xz
+            ;;
             (debian|ubuntu|devuan)
                 __package xz-utils
+                ;;
+            (freebsd|netbsd)
+                # part of the base system
                 ;;
             (gentoo)
                 __package app-arch/xz-utils
                 ;;
-            (alpine|centos|almalinux|eurolinux|rocky|openwrt)
-                __package xz
+        esac
+        ;;
+    (*.pax)
+        case ${os}
+        in
+            (aix)
+                # part of the base system
+                ;;
+            (gentoo)
+                __package app-arch/pax
+                ;;
+            (*)
+                __package pax
                 ;;
         esac
         ;;
@@ -172,9 +216,27 @@ in
             "$(shquot "${dst}/")" \
         >"${__object:?}/files/extract-cmd"
         ;;
+    (*.xar)
+        case ${os}
+        in
+            (aix)
+                # XAR is not supported on AIX
+                exit 1
+                ;;
+            (gentoo)
+                __package app-arch/xar
+                ;;
+            (*)
+                __package xar
+                ;;
+        esac
+       ;;
     (*.zip)
         case ${os}
         in
+            (freebsd|netbsd)
+                # part of the base system
+            ;;
             (gentoo)
                 __package app-arch/unzip
                 ;;
@@ -187,5 +249,38 @@ in
             "$(shquot "${src}")" \
             "$(shquot "${dst}")" \
         >"${__object:?}/files/extract-cmd"
+        ;;
+    (*.Z)
+        case ${os}
+        in
+            (aix|freebsd|netbsd|openbsd)
+                # part of the base system
+                ;;
+            (alpine)
+                # BusyBox gzip(1) supports decompression of POSIX compress files
+                ;;
+            (debian|devuan|ubuntu)
+                # /bin/uncompress is provided by gzip
+                __package gzip
+                ;;
+            (gentoo)
+                __package app-arch/ncompress
+                ;;
+            (openwrt)
+                printf 'the POSIX compress format is not supported on %s' "${os}" >&2
+                exit 1
+                ;;
+        esac
+        ;;
+    (*.zst)
+        case ${os}
+        in
+            (freebsd)
+                # part of the base system
+                ;;
+            (aix|*)
+                __package zstd
+                ;;
+        esac
         ;;
 esac
