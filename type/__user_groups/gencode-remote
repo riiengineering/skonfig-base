@@ -1,6 +1,7 @@
 #!/bin/sh -e
 #
 # 2012 Steven Armstrong (steven-cdist at armstrong.cc)
+# 2024 Dennis Camera (dennis.camera at riiengineering.ch)
 #
 # This file is part of skonfig-base.
 #
@@ -18,59 +19,249 @@
 # along with skonfig-base. If not, see <http://www.gnu.org/licenses/>.
 #
 
-user=$(cat "${__object:?}/parameter/user" 2>/dev/null || echo "${__object_id:?}")
-state_should=$(cat "${__object:?}/parameter/state")
-oldusermod=$(cat "${__object:?}/explorer/oldusermod")
+shquot() {
+	sed -e "s/'/'\\\\''/g" -e "1s/^/'/" -e "\$s/\$/'/" <<-EOF
+	$*
+	EOF
+}
+
 os=$(cat "${__global:?}/explorer/os")
 
-mkdir "${__object:?}/files"
-# file has to be sorted for comparison with `comm`
-sort "${__object:?}/parameter/group" >"${__object:?}/files/group.sorted"
+state_should=$(cat "${__object:?}/parameter/state")
+if test -s "${__object:?}/parameter/user"
+then
+	user=$(cat "${__object:?}/parameter/user")
+else
+	user=${__object_id:?}
+fi
+
+
+comm_groups() {
+	# Groups have to be sorted for comparison with comm(1).
+	# We use LC_ALL=C both in the explorer and here to avoid any locale
+	# differences.
+
+	LC_ALL=C sort "${__object:?}/parameter/group" \
+	| LC_ALL=C comm "$@" "${__object:?}/explorer/groups" -
+}
+
+group_list() {
+	(
+		for g in "$@"
+		do
+			set -- "$@" "$(shquot "${g}")"
+			shift
+		done
+		IFS=,; echo "$*"
+	)
+}
+
+should_groups_list() {
+	# tab for comm output prefix
+	(IFS=$(printf '\n	'); group_list $(comm_groups))
+}
 
 case ${state_should}
 in
-   (present)
-      changed_groups=$(comm -13 "${__object:?}/explorer/group" "${__object:?}/files/group.sorted")
-      ;;
-   (absent)
-      changed_groups=$(comm -12 "${__object:?}/explorer/group" "${__object:?}/files/group.sorted")
-      ;;
+	(present)
+		changed_groups=$(comm_groups -13)
+		;;
+	(absent)
+		changed_groups=$(comm_groups -12)
+		;;
+	(*)
+		printf 'Invalid --state: %s\n' "${state_should}" >&2
+		exit 1
+		;;
 esac
 
-if [ -z "${changed_groups}" ]
+if test -z "${changed_groups}"
 then
-   # Nothing to do, move along
-   exit 0
+	# nothing to do
+	exit 0
 fi
 
-for group in ${changed_groups}
-do
-   if [ "${os}" = 'netbsd' ] || [ "${os}" = 'openbsd' ]
-   then
-      case ${state_should}
-      in
-         (present) echo "usermod -G \"${group}\" \"${user}\"" ;;
-         (absent) echo 'NetBSD and OpenBSD do not have a command to remove a user from a group' >&2 ; exit 1 ;;
-      esac
-   elif [ "${os}" = 'freebsd' ]
-   then
-      case ${state_should}
-      in
-         (present) echo "pw groupmod \"${group}\" -m \"${user}\"" ;;
-         (absent) echo "pw groupmod \"${group}\" -d \"${user}\"" ;;
-      esac
-   elif [ "${oldusermod}" = 'true' ]
-   then
-      case ${state_should}
-      in
-         (present) echo "usermod -A \"${group}\" \"${user}\"" ;;
-         (absent) echo "usermod -R \"${group}\" \"${user}\"" ;;
-      esac
-   else
-      case ${state_should}
-      in
-         (present) echo "gpasswd -a \"${user}\" \"${group}\"" ;;
-         (absent) echo "gpasswd -d \"${user}\" \"${group}\"" ;;
-      esac
-   fi
-done
+case ${os}
+in
+	(netbsd)
+		case ${state_should}
+		in
+			(present)
+				# -G adds new groups. (tested on NetBSD 6+)
+				printf 'user mod -G %s %s\n' \
+					"$(group_list ${changed_groups})" "$(shquot "${user}")"
+				;;
+			(absent)
+				echo 'NetBSD does not have a command to remove users from groups.' >&2
+				exit 1
+				;;
+		esac
+		;;
+	(openbsd)
+		read -r os_version <"${__global:?}/explorer/os_version"
+
+		case ${state_should}
+		in
+			(present)
+				case ${os_version}
+				in
+					(0.*|1.*|2.[0-6])
+						printf 'OpenBSD %s does not provide a command to manage group members.\n' "${os_version}" >&2
+						exit 1
+						;;
+					(2.*)
+						# OpenBSD 2.7+: -G sets the group list
+						printf 'user mod -G %s %s\n' \
+							"$(should_groups_list)" \
+							"$(shquot "${user}")"
+						;;
+					(*)
+						# OpenBSD 3.0+: -G adds to the group list
+						printf 'user mod -G %s %s\n' \
+							"$(group_list ${changed_groups})" \
+							"$(shquot "${user}")"
+						;;
+				esac
+				;;
+			(absent)
+				case ${os_version}
+					(0.*|1.*|2.[0-6])
+						printf 'OpenBSD %s does not provide a command to manage group members.\n' "${os_version}" >&2
+						exit 1
+						;;
+					(2.*)
+						# OpenBSD 2.7+: -G sets the group list
+						printf 'user mod -G %s %s\n' \
+							"$(should_groups_list)" \
+							"$(shquot "${user}")"
+						;;
+					([34].*|5.0)
+						printf 'OpenBSD %s does not provide a command to remove users from groups.\n' "${os_version}" >&2
+						exit 1
+						;;
+					(*)
+						# OpenBSD 5.1+: -S sets the group list
+						printf 'user mod -S %s %s\n' \
+							"$(should_groups_list)" \
+							"$(shquot "${user}")"
+						;;
+				esac
+				;;
+		esac
+		;;
+	(freebsd)
+		user_quoted=$(shquot "${user}")
+		case ${state_should}
+		in
+			(present)
+				for g in ${changed_groups}
+				do
+					printf 'pw groupmod -n %s -m %s\n' \
+						"$(shquot "${g}")" "${user_quoted}"
+				done
+				;;
+			(absent)
+				for g in ${changed_groups}
+				do
+					printf 'pw groupmod -n %s -d %s\n' \
+						"$(shquot "${g}")" "${user_quoted}"
+				done
+				;;
+		esac
+		;;
+	(haiku)
+		user_quoted=$(shquot "${user}")
+		case ${state_should}
+		in
+			(present)
+				for g in ${changed_groups}
+				do
+					printf 'groupmod -A %s %s\n' \
+						"${user_quoted}" "$(shquot "${g}")"
+				done
+				;;
+			(absent)
+				for g in ${changed_groups}
+				do
+					printf 'groupmod -R %s %s\n' \
+						"${user_quoted}" "$(shquot "${g}")"
+				done
+				;;
+		esac
+		;;
+	(suse)
+		if test -s "${__global:?}/explorer/os_release"
+		then
+			# shellcheck source=/dev/null
+			os_version=$(. "${__global:?}/explorer/os_release" && echo "${VERSION}")
+		else
+			os_version=$(sed -n 's/^VERSION\ *=\ *//p' "${__global:?}/explorer/o
+s_version")
+		fi
+		os_major=$(expr "${os_version}" : '\([0-9]\{1,\}\)')
+
+		if test "${os_major}" -lt 12
+		then
+			# only old SuSE :-( (<12)
+			user_quoted=$(shquot "${user}")
+			case ${state_should}
+			in
+				(present)
+					for g in ${changed_groups}
+					do
+						printf 'groupmod -A %s %s\n' \
+							   "${user_quoted}" "$(shquot "${g}")"
+					done
+					;;
+				(absent)
+					for g in ${changed_groups}
+					do
+						printf 'groupmod -R %s %s\n' \
+							   "${user_quoted}" "$(shquot "${g}")"
+					done
+					;;
+			esac
+		else
+			# TODO: use gpasswd
+		fi
+
+		# Alternative: OpenSuSE 11 (not 10.2)
+		#case ${state_should}
+		#in
+		#	(present)
+		#		echo "usermod -A \"$groups_comma_sep\" \"$user\""
+		#		;;
+		#	(absent)
+		#		echo "usermod -R \"$groups_comma_sep\" \"$user\""
+		#		;;
+		#esac
+		;;
+	(alpine|debian|devuan|ubuntu|pop-os|fedora|rhel|centos|scientific|almalinux|rocky|gentoo|guix|slackware)
+		user_quoted=$(shquot "${user}")
+		case ${state_should}
+		in
+			(present)
+				for g in ${changed_groups}
+				do
+					printf 'gpasswd -a %s %s\n' \
+						"${user_quoted}" "$(shquot "${g}")"
+				done
+				;;
+			(absent)
+				for g in ${changed_groups}
+				do
+					printf 'gpasswd -d %s %s\n' \
+						"${user_quoted}" "$(shquot "${g}")"
+				done
+				;;
+		esac
+		;;
+	(solaris)
+		printf 'usermod -G %s %s\n' \
+			"$(should_groups_list)" "$(shquot "${user}")"
+		;;
+	(*)
+		# ???
+		exit 1
+		;;
+esac
