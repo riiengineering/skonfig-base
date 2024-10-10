@@ -48,9 +48,23 @@ openssh_version=$(
 	sshd -V 2>&1 \
 	| sed -n -e 's/^\(sshd version \)\{0,1\}OpenSSH_\([^, ]*\).*$/\2/p')
 
+sshd_config_file=$("${__type_explorer:?}/config_file")
+test -e "${sshd_config_file}" || {
+	echo 'absent'
+	exit 0
+}
+
+grep_cfg_value() {
+	awk -v k="$1" 'tolower(k)==$1 { $1=""; sub(/^[[:blank:]]*/, ""); print }'
+}
+
+conf_get_value() {
+	"${sshd:?}" -T -f "${1:?}" ${sshd_conn_spec:+-C "${sshd_conn_spec}"} \
+	| grep_cfg_value "${2:?}"
+}
+
 default_value() {
-	"${sshd:?}" -T -f /dev/null -C "${sshd_conn_spec}" \
-	| sed -n -e 's/^'"$(tolower "${1:?}")"'[[:blank:]]\{1,\}//p'
+	conf_get_value /dev/null "${1:?}"
 }
 
 is_sshd_version_ge() {
@@ -60,6 +74,24 @@ is_sshd_version_ge() {
 	| head -n1 \
 	| grep -qxF -e "${1%%[!0-9.]*}"
 }
+
+state_should=$(cat "${__object:?}/parameter/state")
+
+if test -s "${__object:?}/parameter/option"
+then
+	read -r option_name <"${__object:?}/parameter/option"
+else
+	option_name=${__object_id:?}
+fi
+if { read -r value_should <"${__object:?}/parameter/value"; } 2>/dev/null
+then
+	value_should=${value_should#\\}
+elif test "${state_should}" != absent
+then
+	# parameter --value is optional for --state absent only
+	printf 'Parameter --value is required for --state %s!\n' "${state_should}" >&2
+	exit 1
+fi
 
 sshd_conn_spec=$(
 	if test -s "${__object:?}/parameter/match"
@@ -124,62 +156,31 @@ sshd_conn_spec=$(
 	| joinlines ','
 ) || exit
 
-sshd_config_file=$("${__type_explorer:?}/config_file")
-state_should=$(cat "${__object:?}/parameter/state")
-
-if test -s "${__object:?}/parameter/option"
-then
-	option_name=$(cat "${__object:?}/parameter/option")
-else
-	option_name=${__object_id:?}
-fi
-
-{ read -r value_should <"${__object:?}/parameter/value"; } 2>/dev/null \
-|| test "${state_should}" = absent || exit 0  # param optional if --state absent
-
-test -e "${sshd_config_file}" || {
-	echo 'absent'
-	exit 0
-}
-
 test -d "${__object:?}/files" || mkdir "${__object:?}/files"
 {
 	if test -s "${__object:?}/parameter/match"
 	then
 		printf 'Match %s\n' "$(joinlines ' ' <"${__object:?}/parameter/match")"
 	fi
-	printf '%s %s\n' "${option_name}" "${value_should#\\}"
+	printf '%s %s\n' "${option_name}" "${value_should}"
 } >"${__object:?}/files/optline.tmp"
 
-value_is=$(
-	"${sshd:?}" -T -f "${sshd_config_file}" -C "${sshd_conn_spec}" \
-	| sed -n -e 's/^'"$(tolower "${option_name}")"'[[:blank:]]\{1,\}//p')
+value_is=$(conf_get_value "${sshd_config_file}" "${option_name}")
 # convert given value to the value reported by sshd -T (this is required to
 # compare values with different names, e.g. prohibit-password or delta values
 # like "Ciphers -md5")
-value_should=$(
-	"${sshd:?}" -T -f "${__object:?}/files/optline.tmp" -C "${sshd_conn_spec}" \
-	| sed -n -e 's/^'"$(tolower "${option_name}")"'[[:blank:]]\{1,\}//p')
-rm "${__object:?}/files/optline.tmp"
+value_should=$(conf_get_value "${__object:?}/files/optline.tmp" "${option_name}")
+rm -f "${__object:?}/files/optline.tmp"
 
-if printf '%s\n' "${value_is}" | {
-		case ${value_should}
-		in
-			(?*)
-				# NOTE: -e is important to work around BusyBox option parser bug when value begins with -:
-				#       $ grep -F '-*md5*' /etc/ssh/sshd_config
-				#       grep: invalid option -- '*'
-				#       BusyBox v1.30.1 (2020-02-19 11:54:49 UTC) multi-call binary.
-				#       ...
-				#
-				#       $ grep -F -e '-*md5*' /etc/ssh/sshd_config
-				#       ...
-				grep -q -x -F -e "${value_should}" ;;
-			(*)
-				# if no --value is provided, assume "any" value
-				grep -q -e '.' ;;
-		esac
-	}
+if test -n "${value_should}"
+then
+	test "${value_is}" = "${value_should}"
+else
+	# if no --value provided, assume "any" value is fine
+	test -n "${value_is}"
+fi && is_match=true || is_match=false
+
+if ${is_match?}
 then
 	if default_value "${option_name}" | grep -q -x -F -e "${value_is}"
 	then
