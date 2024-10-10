@@ -31,6 +31,29 @@ then
 	if command -v getent >/dev/null 2>&1
 	then
 		getent group "${gid}" || :
+	elif command -v dcsl >/dev/null 2>&1
+	then
+		# Mac OS X uses Open Directory to manage users and groups.
+		# /etc/group is only used in single-user mode.
+		dscl -q . -read "/Groups/${name}" | awk -F ':( +|$)' '
+		/^ / {
+			sub(/^ */, "")
+			e[e_last] = e[e_last] $0
+			next
+		}
+		$2 {
+			e[$1] = $2
+			e_last = $1
+		}
+
+		END {
+			sub(/ +/, ",", e["GroupMembership"])
+			printf "%s:%s:%u:%s"ORS,
+				e["RecordName"],
+				e["Password"],
+				e["PrimaryGroupID"],
+				e["GroupMembership"]
+		}'
 	elif test -s /etc/group
 	then
 		# NOTE: the logic to differentiate between

@@ -30,7 +30,7 @@ state_should=$(cat "${__object:?}/parameter/state")
 # We need to shorten options for both usermod and useradd since on some
 # systems (such as *BSD, Darwin) those commands do not handle GNU style long
 # options.
-shorten_property() {
+shorten_usermod_property() {
 	case $1
 	in
 		(comment)
@@ -51,7 +51,7 @@ shorten_property() {
 			echo '-m' ;;
 		(system)
 			echo '-r' ;;
-    esac
+	esac
 }
 
 quote_ifneeded() {
@@ -105,120 +105,154 @@ do_user() {
 	quote_ifneeded "$@"; echo
 }
 
+
+backend_usermod_present() (
+	cd "${__object:?}/parameter"
+
+	if test -s "${__object:?}/explorer/passwd"
+	then
+		# user exists already
+		for property in *
+		do
+			unset -v current_value field
+			new_value=$(cat "${property}")
+			file="${__object:?}/explorer/passwd"
+
+			case ${property}
+			in
+				(gid)
+					field=4
+
+					# We always try to interpret the gid we are given as a
+					# group name, cf. also the comment in explorer/group.
+					# We thus try to resolve the gid from the user's
+					# passwd entry to the respective group name to compare.
+					gid_from_passwd=$(cut -d : -f 4 "${__object:?}/explorer/passwd")
+					gid_from_group=$(cut -d : -f 3 "${__object:?}/explorer/group")
+
+					# default: assume the group is different and thus we
+					# cannot resolve its name:
+					current_value=${gid_from_passwd}
+
+					if test "${gid_from_group}" -eq "${gid_from_passwd}"
+					then
+						# The group explorer returned the user's primary
+						# group. Now we check if the group's name matches
+						# the should value, and if so, we resolve the name
+						# because no change is needed.
+						if test "$(cut -d : -f 1 "${__object:?}/explorer/group")" = "${new_value}"
+						then
+							current_value=${new_value}
+						fi
+						# else: default below
+					fi
+					;;
+				(password)
+					field=2
+					file="${__object:?}/explorer/shadow"
+					;;
+				(comment) field=5 ;;
+				(home)    field=6 ;;
+				(shell)   field=7 ;;
+				(uid)     field=3 ;;
+				(create-home|system|remove-home)
+					# Does not apply to user modification
+					continue
+					;;
+				(state)
+					# Does not apply to user modification
+					continue
+					;;
+			esac
+
+			# If we haven't already set $current_value above, pull it from the
+			# appropriate file/field.
+			: ${current_value:=$(awk -F: -v f=$((field)) '{ print $f }' <"${file}")}
+
+			if test "${new_value}" != "${current_value}"
+			then
+				set -- "$@" "$(shorten_usermod_property "${property}")" "${new_value}"
+			fi
+		done
+
+		if test $# -gt 0
+		then
+			do_user mod "${name}" "$@"
+			echo mod >>"${__messages_out:?}"
+		fi
+	else
+		# user does not already exist
+
+		for property in *
+		do
+			case ${property}
+			in
+				(remove-home)
+					continue ;;
+				(state)
+					continue ;;
+				(*)
+					new_value=$(cat ${property})
+
+					# Boolean options have no value, so new_value must be conditional.
+					set -- "$@" "$(shorten_usermod_property "${property}")" ${new_value:+"${new_value}"}
+					;;
+			esac
+		done
+
+		do_user add "${name}" "$@"
+		echo add >>"${__messages_out:?}"
+	fi
+)
+
+backend_usermod_absent() {
+	if test -s "${__object:?}/explorer/passwd"
+	then
+		set --
+		if test -f "${__object:?}/parameter/remove-home"
+		then
+			set -- "$@" -r
+		fi
+
+		do_user del "${name}" "$@"
+		echo "del $*" >>"${__messages_out:?}"
+		# legacy, use del only in the future, like in the other cases
+		echo "userdel $*" >>"${__messages_out:?}"
+	fi
+}
+
+backend_ds_present() {
+	# https://www.macos.utah.edu/documentation/authentication/dscl.html
+	# https://apple.stackexchange.com/questions/220729/what-type-of-hash-are-a-macs-password-stored-in
+	# https://superuser.com/questions/197508/where-are-mac-user-account-passwords-stored
+
+	# https://github.com/puppetlabs/puppet/blob/main/lib/puppet/type/user.rb
+	# https://github.com/puppetlabs/puppet/commit/efd2a45646eaedd3aa744ebcf7beb94739653db5
+	# https://github.com/puppetlabs/puppet/commit/688779d43c770598ca72c83e14b555f342252150
+	# https://github.com/puppetlabs/puppet/commit/688779d43c770598ca72c83e14b555f342252150#diff-1a6767f47c992bb62e6866f984e11b4f3e7f19ad4b3c724095860ae2abd36c96
+
+	# niutil (NetInfo)
+	# http://www.defenceindepth.net/2009/12/cracking-os-x-passwords.html
+	:
+}
+
+backend_ds_absent() {
+	:
+}
+
+
 case ${state_should}
 in
-	(present)
-		cd "${__object:?}/parameter"
-
-		if test -s "${__object:?}/explorer/passwd"
-		then
-			# user exists already
-			for property in *
-			do
-				unset -v current_value field
-				new_value=$(cat "${property}")
-				file="${__object:?}/explorer/passwd"
-
-				case ${property}
-				in
-					(gid)
-						field=4
-
-						# We always try to interpret the gid we are given as a
-						# group name, cf. also the comment in explorer/group.
-						# We thus try to resolve the gid from the user's
-						# passwd entry to the respective group name to compare.
-						gid_from_passwd=$(cut -d : -f 4 "${__object:?}/explorer/passwd")
-						gid_from_group=$(cut -d : -f 3 "${__object:?}/explorer/group")
-
-						# default: assume the group is different and thus we
-						# cannot resolve its name:
-						current_value=${gid_from_passwd}
-
-						if test "${gid_from_group}" -eq "${gid_from_passwd}"
-						then
-							# The group explorer returned the user's primary
-							# group. Now we check if the group's name matches
-							# the should value, and if so, we resolve the name
-							# because no change is needed.
-							if test "$(cut -d : -f 1 "${__object:?}/explorer/group")" = "${new_value}"
-							then
-								current_value=${new_value}
-							fi
-							# else: default below
-						fi
-						;;
-					(password)
-						field=2
-						file="${__object:?}/explorer/shadow"
-						;;
-					(comment) field=5 ;;
-					(home)    field=6 ;;
-					(shell)   field=7 ;;
-					(uid)     field=3 ;;
-					(create-home|system|remove-home)
-						# Does not apply to user modification
-						continue
-						;;
-					(state)
-						# Does not apply to user modification
-						continue
-						;;
-				esac
-
-				# If we haven't already set $current_value above, pull it from the
-				# appropriate file/field.
-				: ${current_value:=$(awk -F: -v f=$((field)) '{ print $f }' <"${file}")}
-
-				if test "${new_value}" != "${current_value}"
-				then
-					set -- "$@" "$(shorten_property "${property}")" "${new_value}"
-				fi
-			done
-
-			if test $# -gt 0
-			then
-				do_user mod "${name}" "$@"
-				echo mod >>"${__messages_out:?}"
-			fi
-		else
-			# user does not already exist
-
-			for property in *
-			do
-				case ${property}
-				in
-					(remove-home)
-						continue ;;
-					(state)
-						continue ;;
-					(*)
-						new_value=$(cat ${property})
-
-						# Boolean options have no value, so new_value must be conditional.
-						set -- "$@" "$(shorten_property "${property}")" ${new_value:+"${new_value}"}
-						;;
-				esac
-			done
-
-			do_user add "${name}" "$@"
-			echo add >>"${__messages_out:?}"
-		fi
-		;;
-	(absent)
-		if test -s "${__object:?}/explorer/passwd"
-		then
-			set --
-			if test -f "${__object:?}/parameter/remove-home"
-			then
-				set -- "$@" -r
-			fi
-
-			do_user del "${name}" "$@"
-			echo "del $*" >>"${__messages_out:?}"
-			# legacy, use del only in the future, like in the other cases
-			echo "userdel $*" >>"${__messages_out:?}"
-		fi
+	(present|absent)
+		case ${os}
+		in
+			(macosx)
+				backend_ds_${state_should}
+				;;
+			(*)
+				backend_usermod_${state_should}
+				;;
+		esac
 		;;
 	(*)
 		printf 'Invalid state: %s\n' "${state_should}" >&2
