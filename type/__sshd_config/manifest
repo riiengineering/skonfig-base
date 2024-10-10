@@ -1,6 +1,6 @@
 #!/bin/sh -e
 #
-# 2020,2022 Dennis Camera (dennis.camera at riiengineering.ch)
+# 2020,2022,2024 Dennis Camera (dennis.camera at riiengineering.ch)
 #
 # This file is part of skonfig-base.
 #
@@ -24,10 +24,26 @@ state_should=$(cat "${__object:?}/parameter/state")
 
 case ${os}
 in
-	(alpine|centos|almalinux|eurolinux|rocky|fedora|redhat|scientific|debian|devuan|ubuntu)
+	(alpine|centos|almalinux|eurolinux|rocky|fedora|redhat|scientific|devuan|ubuntu)
 		if test "${state_should}" != 'absent'
 		then
 			__package openssh-server --state present
+		fi
+		;;
+	(debian)
+		os_version=$(cat "${__global:?}/explorer/os_version")
+		if test "${state_should}" != 'absent'
+		then
+			case ${os_version}
+			in
+				([0123].[!9]*)
+					# Debian < 4 uses a single package for SSH client and server
+					__package ssh --state present
+					;;
+				(*)
+					__package openssh-server --state present
+					;;
+			esac
 		fi
 		;;
 	(archlinux|gentoo|slackware|suse)
