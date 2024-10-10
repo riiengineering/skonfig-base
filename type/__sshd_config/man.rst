@@ -3,12 +3,13 @@ cdist-type__sshd_config(7)
 
 NAME
 ----
-cdist-type__sshd_config - Manage options in sshd_config
+cdist-type__sshd_config - Manage options in sshd_config.
 
 
 DESCRIPTION
 -----------
-This space intentionally left blank.
+This type allows you to modify the configuration of the OpenSSH server
+(``sshd``).
 
 
 OPTIONAL PARAMETERS
@@ -16,7 +17,7 @@ OPTIONAL PARAMETERS
 file
    The path to the sshd_config file to edit.
 
-   Defaults to: ``/etc/ssh/sshd_config``
+   If not used, the type will auto-detect the path of the config file.
 match
    Restrict this option to apply only for certain connections.
    Allowed values are what would be allowed to be written after a ``Match``
@@ -24,7 +25,9 @@ match
 
    Can be used multiple times. All of the values are ANDed together.
 option
-   The name of the option to manipulate. Defaults to ``__object_id``.
+   The name of the option to manipulate.
+
+   Defaults to: ``__object_id``
 state
    One of:
 
@@ -63,6 +66,11 @@ EXAMPLES
        --value 'cd ~git && exec git-shell ${SSH_ORIGINAL_COMMAND:+-c "${SSH_ORIGINAL_COMMAND}"}'
 
 
+SEE ALSO
+--------
+:strong:`sshd_config`\ (5)
+
+
 BUGS
 ----
 * This type assumes a nicely formatted config file,
@@ -70,6 +78,10 @@ BUGS
 * ``Include`` directives are ignored.
 * Config options are not added/removed to/from the config file if their value is
   the default value.
+* ``Match``es with multiple conditions are only considered identical if the
+  conditions are listed in the same order.
+* This type does not remove empty Match blocks from the config file after the
+  last option was removed.
 
 
 SEE ALSO
