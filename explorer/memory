@@ -3,7 +3,7 @@
 # 2014 Daniel Heule (hda at sfs.biz)
 # 2014 Thomas Oettli (otho at sfs.biz)
 # 2017 Philippe Gregoire (pg at pgregoire.xyz)
-# 2020 Dennis Camera (dennis.camera at riiengineering.ch)
+# 2020,2025 Dennis Camera (dennis.camera at riiengineering.ch)
 #
 # This file is part of skonfig-base.
 #
@@ -45,6 +45,9 @@ bytes2kib() {
 
 case $(uname -s)
 in
+	(AIX)
+		getconf REAL_MEMORY  # kiB
+		;;
 	(Darwin)
 		sysctl -n hw.memsize | bytes2kib
 		;;

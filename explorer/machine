@@ -1,6 +1,7 @@
 #!/bin/sh
 #
 # 2010-2011 Andi Brönnimann (andi-cdist at v-net.ch)
+# 2025 Dennis Camera (dennis.camera at riiengineering.ch)
 #
 # This file is part of skonfig-base.
 #
@@ -20,7 +21,32 @@
 # Prints the processor architecture of the target.
 #
 
-if command -v uname >/dev/null 2>&1
-then
-   uname -m
-fi
+command -v uname >/dev/null 2>&1 || exit 0
+
+case $(uname -s)
+in
+	(AIX)
+		# NOTE: AIX uses -m for machine ID. The -p option displays the processor
+		#       architecture. In reality probably always "powerpc".
+		#       Unfortunately, this does not allow to differentiate 64-bit
+		#       systems, so we patch a 64 to the end if KERNEL_BITMODE is set to
+		#       64. There is also HARDWARE_BITMODE, but I think the kernel
+		#       bitness is more relevant to our use case (could we run 64-bit
+		#       software on a 64-bit CPU running 32-bit AIX? IDK).
+		proc=$(uname -p)
+		bitmode=$(getconf KERNEL_BITMODE)
+
+		case ${proc}@${bitmode}
+		in
+			(*64*@64)
+				echo "${proc}" ;;
+			(*@64)
+				echo "${proc}64" ;;
+			(*)
+				echo "${proc}" ;;
+		esac
+		;;
+	(*)
+		uname -m
+		;;
+esac
