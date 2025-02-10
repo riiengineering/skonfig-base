@@ -25,6 +25,9 @@ uname_s=$(uname -s)
 
 case ${uname_s}
 in
+    (AIX)
+        lsdev -c disk -S a -F name
+        ;;
     (BeOS|Haiku)
         find /dev/disk -type c -name 'raw' \
             ! -path '*/atapi/*' ! -path '*/floppy/*' ! -path '*/virtual/*'

@@ -25,6 +25,9 @@
 os=$("${__explorer:?}/os")
 case ${os}
 in
+    (aix)
+        lsdev -Cc processor | grep -ce '^proc[0-9][0-9]* '
+        ;;
     (macosx)
         system_profiler SPHardwareDataType | grep -F 'Number of Processors' | awk -F': ' '{print $2}'
         ;;

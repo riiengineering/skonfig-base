@@ -235,6 +235,10 @@ fi
 # assume there is no tr on the client -> do lower case ourselves
 case $(uname -s)
 in
+   (AIX)
+      echo aix
+      exit 0
+      ;;
    (Darwin)
       echo macosx
       exit 0

@@ -41,6 +41,9 @@ in
    (adelie)
       rc_getvar /etc/os-release VERSION_ID
       ;;
+   (aix)
+      oslevel -s
+      ;;
    (alpine)
       cat /etc/alpine-release
       ;;

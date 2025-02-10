@@ -356,6 +356,16 @@ check_ct_os_specific() (
 		return 0
 	fi
 
+	if test "${uname_s}" = AIX
+	then
+		# AIX WPAR
+		if wpar_id=$(uname -W) && test $((wpar_id)) -gt 0
+		then
+			echo wpar
+			return 0
+		fi
+	fi
+
 	return 1
 )
 
@@ -432,26 +442,24 @@ check_vm_cpuinfo() {
 			fi
 		fi
 		return 1
-	else
-		if grep -q -e '^model name.*:' /proc/cpuinfo
-		then
-			sed -n -e 's/^model name[^:]*: *//p' /proc/cpuinfo \
-			| while read -r _cpu_model
-			  do
-				  guess_hypervisor_from_cpu_model "${_cpu_model}"
-			  done \
-			| sort \
-			| uniq -c \
-			| awk '
-			  { if ($1 > most_c) { most_c = $1; most_s = $2 } }
-			  END {
-				if (most_s) print most_s
-				exit !most_s
-			  }' \
-			&& return 0
-		fi
-		return 1
+	elif grep -q -e '^model name.*:' /proc/cpuinfo
+	then
+		sed -n -e 's/^model name[[:blank:]]*: *//p' /proc/cpuinfo \
+		| while read -r _cpu_model
+		  do
+			  guess_hypervisor_from_cpu_model "${_cpu_model}"
+		  done \
+		| sort \
+		| uniq -c \
+		| awk '
+		  { if ($1 > most_c) { most_c = $1; most_s = $2 } }
+		  END {
+			if (most_s) print most_s
+			exit !most_s
+		  }' \
+		&& return 0
 	fi
+	return 1
 }
 
 check_vm_arch_specific() {
@@ -466,7 +474,7 @@ check_vm_arch_specific() {
 			# example /proc/ppc64/lparcfg systemtype line
 			# system_type=IBM pSeries (emulated by qemu)
 
-			if has_cpuinfo && grep -q -e 'platform.**pSeries' /proc/cpuinfo
+			if has_cpuinfo && grep -q -e '^platform[[:blank:]]*:[[:blank:]]*pSeries' /proc/cpuinfo
 			then
 				if test -e /proc/ppc64/lparcfg
 				then
