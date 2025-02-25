@@ -3,6 +3,7 @@
 # 2014 Steven Armstrong (steven-cdist at armstrong.cc)
 # 2018 Takashi Yoshi (takashi at yoshi.email)
 # 2019 Nico Schottelius (nico-cdist at schottelius.org)
+# 2025 Dennis Camera (dennis.camera at riiengineering.ch)
 #
 # This file is part of skonfig-base.
 #
@@ -25,6 +26,11 @@ os=$(cat "${__global:?}/explorer/os")
 
 case ${os}
 in
+   (aix)
+      : "${__type:?}"
+      echo "AIX has no sysctl, so ${__type##*/} does not support AIX." >&2
+      exit 1
+      ;;
    # Linux
    (alpine|redhat|centos|almalinux|eurolinux|rocky|ubuntu|debian|devuan|archlinux|coreos)
       :
