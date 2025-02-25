@@ -1,6 +1,7 @@
 #!/bin/sh
 #
 # 2018 Darko Poljak (darko.poljak at gmail.com)
+# 2025 Dennis Camera (dennis.camera at riiengineering.ch)
 #
 # This file is part of skonfig-base.
 #
@@ -20,9 +21,9 @@
 # Prints the file path used by skonfig to store sysctl values.
 #
 
-if [ -d '/etc/sysctl.d' ]
+if test -d /etc/sysctl.d
 then
-    echo '/etc/sysctl.d/99-Z-sysctl-cdist.conf';
+    echo /etc/sysctl.d/99-Z-sysctl-cdist.conf
 else
-    echo '/etc/sysctl.conf';
+    echo /etc/sysctl.conf
 fi

@@ -1,6 +1,7 @@
 #!/bin/sh -e
 #
 # 2014 Steven Armstrong (steven-cdist at armstrong.cc)
+# 2020,2025 Dennis Camera (dennis.camera at riiengineering.ch)
 #
 # This file is part of skonfig-base.
 #
@@ -20,10 +21,16 @@
 # Prints the current running value of the given sysctl option.
 #
 
-if test "$(uname -s)" = NetBSD
-then
-	PATH=$(getconf PATH)
-fi
+case $(uname -s)
+in
+	(AIX)
+		# AIX does not have sysctl.
+		exit 0
+		;;
+	(NetBSD)
+		PATH=$(getconf PATH)
+		;;
+esac
 
 # get the current runtime value
 sysctl -n "${__object_id:?}" || :
