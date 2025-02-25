@@ -35,7 +35,7 @@ then
    echo 'Failed to get home directory from explorer.' >&2
    exit 1
 fi
-ssh_directory="${home}/.ssh"
+ssh_directory="${home%/}/.ssh"
 
 # Ensure that the directory in which the authorized_keys shall be exists and
 # has the right permissions.

@@ -60,5 +60,5 @@ else
 		command -v realpath >/dev/null 2>&1 && home=$(realpath "${home}")
 	fi
 
-	[ -d "${home}" ] && echo "${home}/.ssh/authorized_keys"
+	[ -d "${home}" ] && echo "${home%/}/.ssh/authorized_keys"
 fi
