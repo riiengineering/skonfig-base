@@ -32,6 +32,11 @@ else
    os=$(cat "${__global:?}/explorer/os")
    case ${os}
    in
+       (aix)
+           # we assume people want to install "freeware" when they use __package
+           # dnf/yum needs to be installed first, though.
+           type='yum'
+           ;;
       (amazon|scientific|centos|almalinux|eurolinux|oraclelinux|rocky|fedora|redhat)
          type='yum' ;;
       (archlinux) type='pacman' ;;
