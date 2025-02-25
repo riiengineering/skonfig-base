@@ -31,8 +31,8 @@ then
 else
     case ${os}
     in
-        # RedHat-derivatives and BSDs
-        (centos|fedora|redhat|scientific|oraclelinux|freebsd|macosx|netbsd|openbsd)
+        # RedHat-derivatives, AIX, and BSDs
+        (aix|centos|fedora|redhat|scientific|oraclelinux|freebsd|macosx|netbsd|openbsd)
             # Hostname is FQDN
             name_should=${__target_host:?}
             ;;
@@ -59,6 +59,11 @@ echo 'changed' >>"${__messages_out:?}"
 # Use the good old way to set the hostname.
 case ${os}
 in
+    (aix)
+        echo "test -n \"\$(lsdev -C -S1 -F name -l inet0)\" || mkdev -t inet"
+        echo "chdev -l inet0 -a hostname='${name_should}'"
+        echo "uname -S '${name_should%%.*}'"
+        ;;
     (alpine|debian|devuan|ubuntu)
         echo 'hostname -F /etc/hostname'
         ;;
