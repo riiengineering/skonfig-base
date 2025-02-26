@@ -1,6 +1,7 @@
-#!/bin/sh
+#!/bin/sh -e
 #
 # 2011 Steven Armstrong (steven-cdist at armstrong.cc)
+# 2025 Dennis Camera (dennis.camera at riiengineering.ch)
 #
 # This file is part of skonfig-base.
 #
@@ -20,14 +21,14 @@
 # Get an existing groups group entry.
 #
 
-if [ -f "${__object:?}/parameter/gid" ]
+test -s "${__object:?}/parameter/gid" || exit 0
+
+gid=$(cat "${__object:?}/parameter/gid")
+
+if command -v getent >/dev/null
 then
-   gid=$(cat "${__object:?}/parameter/gid")
-   if command -v getent >/dev/null
-   then
-      getent group "${gid}" || :
-   elif [ -f /etc/group ]
-   then
-      grep -E "^(${gid}|([^:]+:){2}${gid}):" /etc/group || :
-   fi
+	getent group "${gid}" || :
+elif test -f /etc/group
+then
+	awk -v gid="${gid}" -F: '$1 == gid || $3 == gid' /etc/group
 fi
