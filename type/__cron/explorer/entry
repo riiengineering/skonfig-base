@@ -26,7 +26,7 @@ user=$(cat "${__object:?}/parameter/user")
 crontab_list() {
 	case $(uname -s)
 	in
-		(SunOS)
+		(AIX|SunOS)
 			crontab -l "${user}" 2>/dev/null ;;
 		(*)
 			crontab -u "${user}" -l 2>/dev/null ;;
