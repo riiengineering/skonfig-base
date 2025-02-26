@@ -32,6 +32,35 @@ command -v crontab >/dev/null 2>&1 || {
 
 case $(uname -s)
 in
+	(AIX)
+		msg=$(LC_ALL=C crontab -l "${user}" 2>&1 >/dev/null) || {
+			err=$?
+			case ${msg}
+			in
+				(*0481-109\ *|*'not authorized to use'*)
+					# C:
+					# crontab: you are not authorized to use cron.  Sorry.
+					# en_US:
+					# crontab: 0481-109 You are not authorized to use the cron command.
+					cron_fail "${msg}" ${err}
+					;;
+				(*0481-103\ *|*"can't open your"*"file in"*)
+					# C:
+					# can't open yourfile in /var/spool/cron/crontabs directory.
+					# No such file or directory
+					# en_US:
+					# 0481-103 Cannot open a file in the /var/spool/cron/crontabs directory.
+					# A file or directory in the path name does not exist.
+
+					# The user is allowed to use cron but just has no crontab
+					# file.
+					cron_ok
+					;;
+				(*)
+					cron_fail "${msg}" ${err} ;;
+			esac
+		}
+		;;
 	(SunOS)
 		msg=$(LC_ALL=C crontab -l "${user}" 2>&1 >/dev/null) || {
 			err=$?
