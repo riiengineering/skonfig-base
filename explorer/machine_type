@@ -413,8 +413,7 @@ check_vm_systemd() (
 has_vm_cpuinfo() { has_cpuinfo; }
 
 check_vm_cpuinfo() {
-	if grep -q -F 'User Mode Linux' /proc/cpuinfo \
-		|| grep -q -F 'UML' /proc/cpuinfo
+	if grep -q -F -e 'User Mode Linux' -e 'UML' /proc/cpuinfo
 	then
 		# User Mode Linux
 		echo uml
@@ -437,7 +436,7 @@ check_vm_cpuinfo() {
 				return 0
 			elif grep -q -e '^LPAR ' /proc/sysinfo
 			then
-				echo zvm-lpar
+				echo lpar-s390
 				return 0
 			fi
 		fi
@@ -822,6 +821,33 @@ check_vm_os_specific() {
 
 	case ${uname_s}
 	in
+		(AIX)
+			case $(uname -L)
+			in
+				(-1\ *)
+					# full system partition
+					return 1
+					;;
+				(0\ *)
+					# If LPAR number is 0, assume KVM???
+					# The second word is the actual VM name e.g. in libvirt.
+					;;
+				('1 NULL')
+					# LPAR capable machine running in SMP mode
+					;;
+				([1-9]*)
+					# LPAR
+					echo "lpar $(uname -L)"
+					return 0
+					;;
+			esac
+
+			if uname -M | grep -F 'qemu'
+			then
+				echo qemu
+				return 0
+			fi
+			;;
 		(Darwin)
 			if hv_vmm_present=$(get_sysctl kern.hv_vmm_present) \
 				&& test "${hv_vmm_present}" -ne 0
