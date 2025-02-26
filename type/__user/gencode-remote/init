@@ -49,6 +49,9 @@ quote_ifneeded() {
 
 case ${os}
 in
+	(aix)
+		# shellcheck source=SCRIPTDIR/aix.sh
+		. "${__type:?}/gencode-remote/aix.sh" ;;
 	(freebsd)
 		# shellcheck source=SCRIPTDIR/freebsd.sh
 		. "${__type:?}/gencode-remote/freebsd.sh" ;;
