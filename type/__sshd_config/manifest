@@ -1,6 +1,6 @@
 #!/bin/sh -e
 #
-# 2020,2022,2024 Dennis Camera (dennis.camera at riiengineering.ch)
+# 2020,2022,2024-2025 Dennis Camera (dennis.camera at riiengineering.ch)
 #
 # This file is part of skonfig-base.
 #
@@ -46,10 +46,16 @@ in
 			esac
 		fi
 		;;
-	(archlinux|gentoo|slackware|suse)
+	(archlinux|slackware|suse)
 		if test "${state_should}" != 'absent'
 		then
 			__package openssh --state present
+		fi
+		;;
+	(gentoo)
+		if test "${state_should}" != 'absent'
+		then
+			__package net-misc/openssh --state present
 		fi
 		;;
 	(freebsd|netbsd|openbsd)
