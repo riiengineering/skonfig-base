@@ -62,12 +62,12 @@ in
 			unset -v CDIST_ORDER_DEPENDENCY
 		fi
 		;;
-	(centos|fedora|redhat|scientific)
+	(centos|fedora|redhat|scientific|oraclelinux)
 		read -r os_version <"${__global:?}/explorer/os_version"
 		os_major=${os_version%%[!0-9]*}
 		case ${os}
 		in
-			(centos|almalinux|rocky|scientific|eurolinux)
+			(centos|almalinux|rocky|scientific|eurolinux|oraclelinux)
 				update_sysconfig=$(test $((os_major)) -lt 6 && echo true || echo false)
 				;;
 			(fedora)

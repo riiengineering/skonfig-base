@@ -83,7 +83,7 @@ in
     (archlinux)
         locale_conf='/etc/locale.conf'
         ;;
-    (centos|redhat|scientific)
+    (centos|redhat|scientific|oraclelinux)
         # shellcheck source=/dev/null
         version_id=$(. "${__global:?}/explorer/os_release" && echo "${VERSION_ID:-0}")
         if version_ge "${version_id}" 7
