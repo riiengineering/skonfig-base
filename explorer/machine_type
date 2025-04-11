@@ -80,7 +80,8 @@ is_oneof() (
 	return 1
 )
 
-tolower() { LC_ALL=C tr '[:upper:]' '[:lower:]'; }
+#tolower() { LC_ALL=C tr '[:upper:]' '[:lower:]'; }
+tolower() { awk '{ print tolower($0) }'; }
 
 # shellcheck disable=SC2086
 glob_exists() { set -- $1; test -e "$1"; }
@@ -110,7 +111,7 @@ get_dmi_field() {
 		in
 			(system-manufacturer) _filename=sys_vendor ;;
 			(system-product-name) _filename=product_name ;;
-			(*) _filename=$(echo "$1" | tr - _) ;;
+			(*) _filename=$(echo "$1" | sed -e 'y/-/_/') ;;
 		esac
 		if test -r "${dmi_sysfs-}/${_filename}"
 		then

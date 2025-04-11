@@ -35,54 +35,109 @@ dst=$(sed 's/\/$//' "${__object:?}/parameter/destination")
 
 cmd=''
 
-case ${src}
-in
-    (*.tar|*.tgz|*.tar.*|*.txz|*.tbz2)
-        cmd="mkdir -p '${dst}' && tar --directory='${dst}' --extract --file='${src}'"
+f=${src}
+while :
+do
+    case ${f}
+    in
+        # https://git.savannah.gnu.org/cgit/tar.git/tree/src/suffix.c?h=release_1_34#n29
+        (*.tar|*.tgz|*.tar.*|*.txz|*.tbz2)
+            # NOTE: make sure the options work with all tar implementations (e.g. BusyBox)
+            cmd="mkdir -p $(shquot "${dst}") && cd $(shquot "${dst}") && tar xf $(shquot "${src}")"
 
-        if [ -f "${__object:?}/parameter/tar-strip" ]
-        then
-            tar_strip=$(cat "${__object:?}/parameter/tar-strip")
+            if [ -f "${__object:?}/parameter/tar-strip" ]
+            then
+                tar_strip=$(cat "${__object:?}/parameter/tar-strip")
 
-            cmd="${cmd} --strip-components=${tar_strip}"
-        fi
+                cmd="${cmd} --strip-components=${tar_strip}"
+            fi
 
-        if [ -f "${__object:?}/parameter/tar-extra-args" ]
-        then
-            tar_extra_args=$(cat "${__object:?}/parameter/tar-extra-args")
+            if [ -f "${__object:?}/parameter/tar-extra-args" ]
+            then
+                tar_extra_args=$(cat "${__object:?}/parameter/tar-extra-args")
 
-            cmd="${cmd} ${tar_extra_args}"
-        fi
+                cmd="${cmd} ${tar_extra_args}"
+            fi
+            break
         ;;
-    (*.7z)
-        case ${os}
-        in
-            (centos|almalinux|eurolinux|rocky|fedora|redhat)
-                cmd='7za'
+        (*.7z)
+            case ${os}
+            in
+                (alpine)
+                    cmd='7z'
                 ;;
-            (*)
-                cmd='7zr'
+                (centos|almalinux|eurolinux|rocky|fedora|redhat)
+                    cmd='7za'
                 ;;
-        esac
+                (*)
+                    cmd='7zr'
+                ;;
+            esac
 
-        cmd="${cmd} e -aoa -o'${dst}' '${src}'"
+            cmd="${cmd} e -aoa -o$(shquot "${dst}") $(shquot "${src}")"
+            cmd_stdout=false
+            break  # XXX
         ;;
-    (*.bz2)
-        cmd="bunzip2 --stdout '${src}' >'${dst}'"
+        (*.bz2)
+            cmd="bunzip2 --stdout $(shquot "${src}")"
+            cmd_stdout=true
         ;;
-    (*.gz)
-        cmd="gunzip --stdout '${src}' >'${dst}'"
+        (*.cpio)
+            cmd="cd $(shquot "${dst}") && cpio -i <$(shquot "${src}")"
+            cmd_stdout=false
         ;;
-    (*.lzma|*.xz)
-        cmd="xz --uncompress --stdout '${src}' >'${dst}'"
+        (*.gz)
+            cmd="gunzip --stdout $(shquot "${src}")"
+            cmd_stdout=true
         ;;
-    (*.rar)
-        cmd="unrar x -o+ '${src}' '${dst}/'"
+        (*.lzma|*.xz)
+            cmd="xz --uncompress --stdout $(shquot "${src}")"
+            cmd_stdout=true
         ;;
-    (*.zip)
-        cmd="unzip -o '${src}' -d '${dst}'"
+        (*.pax)
+            cmd="cd $(shquot "${dst}") && pax -r <$(shquot "${src}")"
+            cmd_stdout=false
         ;;
-esac
+        (*.rar)
+            cmd="unrar x -o+ $(shquot "${src}") $(shquot "${dst}/")"
+            cmd_stdout=false
+            break
+        ;;
+        (*.xar)
+            cmd="xar -C $(shquot "${dst}") -xf $(shquot "${src}")"
+            cmd_stdout=false
+            break
+        ;;
+        (*.Z)
+            case ${os}
+            in
+                (alpine)
+                    # use gzip(1)
+                    cmd="cd $(shquot "${dst}") && gunzip -k $(shquot "${src}")"
+                ;;
+                (*)
+                    cmd="cd $(shquot "${dst}") && uncompress -f -k -- $(shquot "${src}")"
+                ;;
+            esac
+            cmd_stdout=false
+            break
+        ;;
+        (*.zip)
+            cmd="unzip -o $(shquot "${src}") -d $(shquot "${dst}")"
+            cmd_stdout=false
+            break
+        ;;
+        (*.zstd)
+            cmd="zstd -d <$(shquot "${src}")"
+            cmd_stdout=true
+        ;;
+        (*)
+            break
+        ;;
+    esac
+    f=${f%.*}
+done
+unset -v f
 
 if [ -f "${__object:?}/parameter/backup-destination" ]
 then
