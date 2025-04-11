@@ -26,7 +26,7 @@ entry="${uri:?} ${distribution:?} ${component:?}"
 
 options_src="${signed_by-}"
 options="${forcedarch-} ${options_src-}"
-options=${options# }; options=${options% } # trim space from either end
+options=${options# }; options=${options% }  # trim space from either end
 
 printf 'deb %s%s\n' "${options:+[${options}] }" "${entry}"
 if test -f "${__object:?}/parameter/include-src"

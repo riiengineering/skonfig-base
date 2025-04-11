@@ -74,7 +74,20 @@ in
         echo "echo '${name_should}' >/proc/sys/kernel/hostname"
         ;;
     (macosx)
-        echo "scutil --set HostName '${name_should}'"
+        # persistant configuration
+        short_name=${name_should%%.*}
+        echo "scutil --set ComputerName '${short_name}'"
+        echo "scutil --set LocalHostName '${short_name}'"
+
+        # runtime configuration
+        case ${name_should}
+        in
+            (*.*)
+                hostname=${name_should} ;;
+            (*)
+                hostname=${name_should}.local ;;
+        esac
+        echo "hostname '${hostname}'"
         ;;
     (solaris)
         echo "uname -S '${name_should}'"
