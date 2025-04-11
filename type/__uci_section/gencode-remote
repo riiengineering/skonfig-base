@@ -1,6 +1,6 @@
 #!/bin/sh -e
 #
-# 2020 Dennis Camera (dennis.camera at riiengineering.ch)
+# 2020,2022 Dennis Camera (dennis.camera at riiengineering.ch)
 #
 # This file is part of skonfig-base.
 #
@@ -22,6 +22,8 @@
 . "${__type:?}/files/functions.sh"
 
 
+# TODO: handle unnamed sections after deletions
+# https://git.openwrt.org/?p=project/uci.git;a=blob;f=list.c;hb=f84f49f00fb70364f58b4cce72f1796a7190d370#l149
 section=$(cat "${__object:?}/explorer/match")
 
 state_is=$(test -s "${__object:?}/explorer/type" && echo present || echo absent)
@@ -70,7 +72,7 @@ in
 		fi
 
 		# Make sure the section itself is present
-		if test "${state_is}" = absent \
+		if test "${state_is}" = 'absent' \
 			|| test "${type_is}" != "${type_should#*.}"
 		then
 			printf 'set %s\n' "${section}" >>"${__messages_out:?}"
@@ -167,8 +169,12 @@ esac
 
 if test -s "${__object:?}/files/uci_batch.txt"
 then
+	# only if there are commands to execute
+
+	# TODO: acquire lock
+
 	cat "${__type:?}/files/uci_apply.sh"
 	printf "uci_apply <<'EOF'\n"
 	cat "${__object:?}/files/uci_batch.txt"
-	printf '\nEOF\n'
+	printf 'EOF\n'
 fi

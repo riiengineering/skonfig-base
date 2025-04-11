@@ -2,6 +2,7 @@
 #
 # 2011-2012 Nico Schottelius (nico-cdist at schottelius.org)
 # 2013 Daniel Heule (hda at sfs.biz)
+# 2025 Dennis Camera (dennis.camera at riiengineering.ch)
 #
 # This file is part of skonfig-base.
 #
@@ -18,17 +19,17 @@
 # You should have received a copy of the GNU General Public License
 # along with skonfig-base. If not, see <http://www.gnu.org/licenses/>.
 #
-# Retrieve the status of a package of different types
+# Prints the version of the package currently installed.
 #
 
-if [ -f "${__object:?}/parameter/name" ]
+if test -f "${__object:?}/parameter/name"
 then
     name=$(cat "${__object:?}/parameter/name")
 else
     name=${__object_id:?}
 fi
 
-if [ -f "${__object:?}/parameter/ptype" ]
+if test -f "${__object:?}/parameter/ptype"
 then
     ptype=$(cat "${__object:?}/parameter/ptype")
 else
@@ -38,13 +39,13 @@ fi
 case ${ptype}
 in
     (package)
-        zypper search --details --match-exact --installed-only --type "${ptype}" "${name}" | grep '^i' | cut -d " " -f 3,7 || :
+        zypper search --details --match-exact --installed-only --type "${ptype}" "${name}" | awk -F ' *\\| *' '"i"==$1 { print $4 }'
         ;;
-    (patch|pattern|product|srcpackage)
-        zypper search --match-exact --installed-only --type "${ptype}" "${name}" | grep '^i' | cut -d " " -f 3 || :
-        ;;
+    # (patch|pattern|product|srcpackage)
+    #     zypper search --match-exact --installed-only --type "${ptype}" "${name}" | awk -F ' *\\| *' '"i"==$1 { print $2 }'
+    #     ;;
     (*)
-        echo 'unknown ptype in __package_zypper explorer' >&2
+        printf 'Invalid --ptype: %s\n' "${ptype}" >&2
         exit 1
         ;;
 esac

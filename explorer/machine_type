@@ -80,7 +80,8 @@ is_oneof() (
 	return 1
 )
 
-tolower() { LC_ALL=C tr '[:upper:]' '[:lower:]'; }
+#tolower() { LC_ALL=C tr '[:upper:]' '[:lower:]'; }
+tolower() { awk '{ print tolower($0) }'; }
 
 # shellcheck disable=SC2086
 glob_exists() { set -- $1; test -e "$1"; }
@@ -110,7 +111,7 @@ get_dmi_field() {
 		in
 			(system-manufacturer) _filename=sys_vendor ;;
 			(system-product-name) _filename=product_name ;;
-			(*) _filename=$(echo "$1" | tr - _) ;;
+			(*) _filename=$(echo "$1" | sed -e 'y/-/_/') ;;
 		esac
 		if test -r "${dmi_sysfs-}/${_filename}"
 		then
@@ -519,7 +520,7 @@ check_vm_arch_specific() {
 				&& return 0
 			fi
 			if has_cpuinfo \
-				&& grep -q -i -e '^flags[ 	]*:.* \(hypervisor\|vmm\)\( \|$\)' /proc/cpuinfo
+				&& grep -q -i -e '^flags[[:blank:]]*:.* \(hypervisor\|vmm\)\( \|$\)' /proc/cpuinfo
 			then
 				return 0
 			fi
@@ -825,7 +826,8 @@ check_vm_os_specific() {
 			# FreeBSD does not have /proc/cpuinfo even when procfs is used.
 			# Instead there is a sysctl kern.vm_guest.
 			# Which is 'none' if physical, else the virtualisation.
-			vm_guest=$(get_sysctl kern.vm_guest | tolower) &&
+			# https://github.com/freebsd/freebsd-src/blob/release/14.2.0/sys/kern/subr_param.c#L151
+			vm_guest=$(get_sysctl kern.vm_guest) &&
 			case ${vm_guest}
 			in
 				(none) ;;
@@ -843,6 +845,7 @@ check_vm_os_specific() {
 			esac
 			;;
 		(NetBSD)
+			# https://github.com/NetBSD/src/blob/2b5b1d1e224dd415e3523b911c88008244e6ae10/sys/arch/x86/x86/x86_machdep.c#L1338
 			machdep_hv=$(get_sysctl machdep.hypervisor | tolower) &&
 			case ${machdep_hv}
 			in
