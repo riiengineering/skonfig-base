@@ -80,7 +80,8 @@ is_oneof() (
 	return 1
 )
 
-tolower() { LC_ALL=C tr '[:upper:]' '[:lower:]'; }
+#tolower() { LC_ALL=C tr '[:upper:]' '[:lower:]'; }
+tolower() { awk '{ print tolower($0) }'; }
 
 # shellcheck disable=SC2086
 glob_exists() { set -- $1; test -e "$1"; }
@@ -110,7 +111,7 @@ get_dmi_field() {
 		in
 			(system-manufacturer) _filename=sys_vendor ;;
 			(system-product-name) _filename=product_name ;;
-			(*) _filename=$(echo "$1" | tr - _) ;;
+			(*) _filename=$(echo "$1" | sed -e 'y/-/_/') ;;
 		esac
 		if test -r "${dmi_sysfs-}/${_filename}"
 		then
@@ -137,7 +138,10 @@ get_dmi_field() {
 has_cpuinfo() { test -e /proc/cpuinfo; }
 
 get_sysctl() {
-	is_command sysctl && sysctl -n "$1" 2>/dev/null
+	is_command sysctl || return 1
+	# NOTE: `grep .` because some implementations of sysctl(8) don't
+	#       set the exit status properly
+	sysctl -n "$1" 2>/dev/null | grep .
 }
 
 detected_layer() {
@@ -519,7 +523,7 @@ check_vm_arch_specific() {
 				&& return 0
 			fi
 			if has_cpuinfo \
-				&& grep -q -i -e '^flags[ 	]*:.* \(hypervisor\|vmm\)\( \|$\)' /proc/cpuinfo
+				&& grep -q -i -e '^flags[[:blank:]]*:.* \(hypervisor\|vmm\)\( \|$\)' /proc/cpuinfo
 			then
 				return 0
 			fi
@@ -822,13 +826,15 @@ check_vm_os_specific() {
 			fi
 			;;
 		(FreeBSD)
+			# FIXME: is tolower needed here? breaks exit status
 			# FreeBSD does not have /proc/cpuinfo even when procfs is used.
 			# Instead there is a sysctl kern.vm_guest.
 			# Which is 'none' if physical, else the virtualisation.
-			vm_guest=$(get_sysctl kern.vm_guest | tolower) &&
+			# https://github.com/freebsd/freebsd-src/blob/release/14.2.0/sys/kern/subr_param.c#L151
+			vm_guest=$(get_sysctl kern.vm_guest) &&
 			case ${vm_guest}
 			in
-				(none) ;;
+				(none|'') ;;
 				(generic) _hyp_generic=true ;;
 				(*)
 					# kernel could detect hypervisor
@@ -843,6 +849,7 @@ check_vm_os_specific() {
 			esac
 			;;
 		(NetBSD)
+			# https://github.com/NetBSD/src/blob/2b5b1d1e224dd415e3523b911c88008244e6ae10/sys/arch/x86/x86/x86_machdep.c#L1338
 			machdep_hv=$(get_sysctl machdep.hypervisor | tolower) &&
 			case ${machdep_hv}
 			in
@@ -882,17 +889,29 @@ check_vm_os_specific() {
 			fi
 			;;
 		(SunOS)
-			diag_conf=$(prtdiag | sed -n -e 's/.*Configuration: *//p' -e '/^$/q')
-			# NOTE: Don't use -e or -F in Solaris grep
-			if printf '%s\n' "${diag_conf}" | grep -qiF QEMU
-			then
-				echo qemu
-				return 0
-			elif printf '%s\n' "${diag_conf}" | grep -qiF VMware
-			then
-				echo vmware
-				return 0
-			fi
+			sysinfo_manuf=$(
+				sysinfo -p \
+				| sed -e '/^Manufacturer=/!d' -e 's/^[^=]*=//' -e "s/^'\(.*\)'$/\1/" \
+				| tr '[:upper:]' '[:lower:]')
+			case ${sysinfo_manuf}
+			in
+				(qemu|vmware)
+					echo "${sysinfo_manuf}"
+					return 0
+					;;
+			esac
+
+			# diag_conf=$(prtdiag | sed -n -e 's/.*Configuration: *//p' -e '/^$/q')
+			# # NOTE: Don't use -e or -F in Solaris grep
+			# if printf '%s\n' "${diag_conf}" | grep -qi QEMU
+			# then
+			# 	echo qemu
+			# 	return 0
+			# elif printf '%s\n' "${diag_conf}" | grep -qi VMware
+			# then
+			# 	echo vmware
+			# 	return 0
+			# fi
 			;;
 		(Linux)
 			if is_command dmesg
@@ -931,7 +950,8 @@ check_vm_os_specific() {
 							return 0
 							;;
 						(lpar:*' under hypervisor')
-							return 0 ;;
+							return 0
+							;;
 					esac
 				done <<-EOF
 				$(dmesg 2>/dev/null | awk '
@@ -950,7 +970,7 @@ check_vm_os_specific() {
 		guess_hypervisor_from_cpu_model "${cpu_model}" && return 0
 	fi
 
-	if ${_hyp_generic}
+	if ${_hyp_generic?}
 	then
 		# cannot say which hypervisor, but one was detected
 		return 0
