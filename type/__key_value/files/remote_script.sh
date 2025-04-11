@@ -38,18 +38,29 @@ else
 fi
 export exact_delimiter
 
-tmpfile=$(mktemp "${file}.skonfig.XXXXXX")
+if command -v mktemp >/dev/null 2>&1
+then
+	tmpfile=$(mktemp "${file}.skonfig.XXXXXX")
+elif command -v perl >/dev/null 2>&1
+then
+	tmpfile=$(perl -s -e '
+	          use File::Temp;
+	          printf "%s\n", File::Temp->new(TEMPLATE => "${file}.skonfig.XXXXXX", UNLINK => 0);' \
+	          -- -file="${file}")
+else
+	tmpfile=${file}.skonfig.tmp
+fi
 # preserve ownership and permissions by copying existing file over tmpfile
-if [ -f "${file}" ]
+if test -f "${file}"
 then
     cp -p "${file}" "${tmpfile}"
 else
     touch "${file}"
 fi
 
-awk_bin=$(PATH=$(getconf PATH 2>/dev/null) && command -v awk 2>/dev/null || echo awk)
+PATH="$(getconf PATH):${PATH}" || :
 
-"${awk_bin}" -f - "${file}" >"${tmpfile}" <<'AWK_EOF'
+awk -f - "${file}" >"${tmpfile}" <<'AWK_EOF'
 BEGIN {
     # import variables in a secure way ..
     state=ENVIRON["state"]
