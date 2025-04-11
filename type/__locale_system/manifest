@@ -66,9 +66,11 @@ in
         else
             locale_conf='/etc/environment'
         fi
+        quote_value=true
         ;;
     (devuan)
         locale_conf='/etc/default/locale'
+        quote_value=true
         ;;
     (ubuntu)
         os_version=$(cat "${__global:?}/explorer/os_version")
@@ -83,6 +85,7 @@ in
         else
             locale_conf='/etc/environment'
         fi
+        quote_value=true
         ;;
     (archlinux)
         locale_conf='/etc/locale.conf'

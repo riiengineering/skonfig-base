@@ -30,7 +30,7 @@
 #   nosuchfile
 #     the --file does not exist.
 #   wrongformat
-#     there is white-space around --delimiter but --exact_delimiter was used.
+#     there is white-space around --delimiter but --exact-delimiter was used.
 #
 
 key="$(cat "${__object:?}/parameter/key" 2>/dev/null \
@@ -48,7 +48,7 @@ fi
 delimiter=$(cat "${__object:?}/parameter/delimiter")
 value="$(cat "${__object:?}/parameter/value" 2>/dev/null \
    || echo "__CDIST_NOTSET__")"
-if [ -f "${__object:?}/parameter/exact_delimiter" ]
+if [ -f "${__object:?}/parameter/exact-delimiter" ]
 then
     exact_delimiter=1
 else
@@ -56,9 +56,9 @@ else
 fi
 export key state delimiter value exact_delimiter
 
-awk_bin=$(PATH=$(getconf PATH 2>/dev/null) && command -v awk 2>/dev/null || echo awk)
+PATH="$(getconf PATH):${PATH}" || :
 
-"${awk_bin}" -f - "${file}" <<"AWK_EOF"
+awk -f - "${file}" <<"AWK_EOF"
 BEGIN {
     state=ENVIRON["state"]
     key=ENVIRON["key"]
@@ -80,12 +80,12 @@ BEGIN {
         if(delpos > 1) {
             spaces = substr(delval,1,delpos-1)
             sub(/[ \t]*/,"",spaces)
-            if( length(spaces) > 0 ) {
+            if(length(spaces) > 0) {
                 # if there are not only spaces between key and delimiter,
                 # continue since we we are on the wrong line
                 next
             }
-            if( exact_delimiter == 1) {
+            if(exact_delimiter == 1) {
                 # we have key and delimiter, but since additional spaces are not alowed
                 # return wrongformat
                 found=1

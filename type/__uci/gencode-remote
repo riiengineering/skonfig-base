@@ -98,8 +98,12 @@ esac
 
 if test -s "${__object:?}/files/uci_batch.txt"
 then
+	# only if there are commands to execute
+
+	# TODO: acquire lock
+
 	cat "${__type:?}/files/uci_apply.sh"
 	printf "uci_apply <<'EOF'\n"
 	cat "${__object:?}/files/uci_batch.txt"
-	printf '\nEOF\n'
+	printf 'EOF\n'
 fi

@@ -44,7 +44,7 @@ value
 
 BOOLEAN PARAMETERS
 ------------------
-exact_delimiter
+exact-delimiter
    If supplied, treat additional whitespaces between key, delimiter and value
    as wrong value.
 

@@ -1,6 +1,7 @@
 #!/bin/sh -e
 #
 # 2012 Nico Schottelius (nico-cdist at schottelius.org)
+# 2025 Dennis Camera (dennis.camera at riiengineering.ch)
 #
 # This file is part of skonfig-base.
 #
@@ -18,11 +19,14 @@
 # along with skonfig-base. If not, see <http://www.gnu.org/licenses/>.
 #
 
+destination="/${__object_id:?}"
+
+read -r state_should <"${__object:?}/parameter/state"
+
 state_is=$(cat "${__object:?}/explorer/state")
 owner_is=$(cat "${__object:?}/explorer/owner")
 group_is=$(cat "${__object:?}/explorer/group")
 
-state_should=$(cat "${__object:?}/parameter/state")
 
 branch=''
 if [ -f "${__object:?}/parameter/branch" ]
@@ -31,8 +35,6 @@ then
 fi
 
 source=$(cat "${__object:?}/parameter/source")
-
-destination="/${__object_id:?}"
 
 owner=$(cat "${__object:?}/parameter/owner")
 group=$(cat "${__object:?}/parameter/group")

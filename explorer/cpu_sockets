@@ -25,6 +25,23 @@
 os=$("${__explorer:?}/os")
 case ${os}
 in
+    (freebsd)
+        sockets=$(
+            # filter CPU groups of the top level (1) sharing cache level 0 (no
+            # caches are shared between sockets)
+            # shellcheck disable=SC3003
+            sysctl -n kern.sched.topology_spec \
+            | sed -e 's/^ *//' \
+                  -e 's/\(<[^>]*>\)\(.\)/\1'$'\\\n''\2/g' \
+                  -e 's/\(.\)</\1'$'\\\n''</g' \
+            | sed -e '/<groups.*>/,/<\/groups>/!d' \
+                  -e '/<group[ >]/!d' \
+                  -e '/ level="1"/!d' \
+                  -e '/ cache-level="0"/!d' \
+            | grep -cF -e '<group') || :
+        test $((sockets)) -gt 0 || sockets=1
+        printf '%u\n' "${sockets}"
+        ;;
     (macosx)
         system_profiler SPHardwareDataType | grep -F 'Number of Processors' | awk -F': ' '{print $2}'
         ;;

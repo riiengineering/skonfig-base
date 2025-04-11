@@ -20,7 +20,8 @@
 # Prints "true" if usermod(8) supports the -A option, "false" otherwise.
 #
 
-if usermod --help | grep -qF -e '-A group'
+# NOTE: on OpenBSD "usermod --help" prints an error message
+if usermod --help 2>/dev/null | grep -qF -e '-A group'
 then
 	echo true
 else

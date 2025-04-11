@@ -53,13 +53,13 @@ quote() {
 		fi
 	done
 	unset _arg
-	printf '%s' "$*"
+	printf '%s\n' "$*"
 }
 
 uci_cmd() {
 	# Usage: uci_cmd [UCI ARGUMENTS]...
 	mkdir -p "${__object:?}/files"
-	printf '%s\n' "$(quote "$@")" >>"${__object:?}/files/uci_batch.txt"
+	quote "$@" >>"${__object:?}/files/uci_batch.txt"
 }
 
 uci_validate_name() {

@@ -18,10 +18,13 @@
 # You should have received a copy of the GNU General Public License
 # along with skonfig-base. If not, see <http://www.gnu.org/licenses/>.
 #
-# Prints the current owner of the Git repository directory.
+# Prints the current owner (name or uid depending on --owner) of the Git
+# repository directory (.git).
 #
 
 destination="/${__object_id:?}/.git"
+
+test -d "${destination}" || exit 0
 
 # shellcheck disable=SC2012
 owner_uid=$(ls -ldn "${destination}" | awk '{ print $3 }')

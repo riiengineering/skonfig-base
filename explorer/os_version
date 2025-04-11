@@ -1,7 +1,7 @@
 #!/bin/sh -e
 #
 # 2010-2011 Nico Schottelius (nico-cdist at schottelius.org)
-# 2020-2023,2025 Dennis Camera (dennis.camera at riiengineering.ch)
+# 2020-2025 Dennis Camera (dennis.camera at riiengineering.ch)
 #
 # This file is part of skonfig-base.
 #
@@ -217,6 +217,22 @@ in
    (slackware)
       sed -e 's/^Slackware //' /etc/slackware-version
       ;;
+   (solaris)
+      release=$(uname -r)
+      version=$(uname -v)
+      case ${release}/${version}
+      in
+         (5.11/11.*)
+            # Since Solaris 11 will (likely) be the last ever major Solaris
+            # release, minor versions seem to have become more important, but
+            # uname -r does not report them.  In Oracle Solaris uname -v reports
+            # the 11.x version, but none of the others (Sun Solaris 10 nor
+            # OpenSolaris) do.
+            printf '5.%s\n' "${version}" ;;
+         (*)
+            printf '%s\n' "${release}" ;;
+      esac
+      ;;
    (suse)
       if test -f /etc/os-release
       then
@@ -246,7 +262,7 @@ in
    (smartos)
       awk '1==NR {print $2}' /etc/release
       ;;
-   (*bsd|solaris)
+   (*bsd)
       # NOTE: this section has to be at the bottom because of the wildcard.
       #       The freebsd section above should take precedence.
       uname -r

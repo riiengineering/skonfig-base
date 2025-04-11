@@ -20,6 +20,11 @@
 #
 # Prints the processor architecture of the target.
 #
+# Linux:
+#  - aarch64
+#  - ppc
+#  - mips
+#  - armv7l
 
 command -v uname >/dev/null 2>&1 || exit 0
 
@@ -50,6 +55,13 @@ in
 				;;
 		esac
 		${proc:+echo "${proc}"}
+		;;
+	(SunOS)
+		# On Solaris uname -p prints the processor architecture (e.g. i386)
+		# whereas uname -m prints the machine hardware name (e.g. i86pc).
+		# According to the uname(1) man page, usage of uname -m by third party
+		# programs is discouraged.
+		uname -p
 		;;
 	(*)
 		uname -m

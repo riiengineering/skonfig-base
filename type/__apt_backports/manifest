@@ -45,6 +45,7 @@ join_lines() {
 }
 
 # detect distribution
+# FIXME: implement taking backports from archive.debian.org for older releases
 read -r os <"${__global:?}/explorer/os"
 case ${os}
 in

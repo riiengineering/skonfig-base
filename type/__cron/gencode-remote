@@ -26,9 +26,11 @@
 entry_replace_cmd() {
 	# NOTE: make sure that the snippet does not process escape sequences in the
 	#       command
-	printf "SUFFIX=%s ENTRY=%s awk 'function prtrepl(){if(!p&&ENVIRON[\"ENTRY\"])print ENVIRON[\"ENTRY\"];p=1} !/^[ \\\\t]*#/ && substr(\$0, length(\$0)-length(ENVIRON[\"SUFFIX\"])+1) == ENVIRON[\"SUFFIX\"] {prtrepl();next} {print} END {prtrepl()}'\\n" \
-		"$(quote "$1")" \
-		"$(quote "$2")"
+	# shellcheck disable=SC2016
+	printf 'awk -v suffix=%s -v entry=%s %s\n' \
+		"$(shquot "$1")" \
+		"$(shquot "$2")" \
+		"$(shquot 'function prtrepl(){if(!p&&entry){print entry};p=1} !/^[ \t]*#/ && substr($0, length-length(suffix+1) == suffix {prtrepl();next} {print} END {prtrepl()}')"
 }
 
 name=${__object_name:?}
@@ -67,7 +69,7 @@ test "${state_is}" != "${state_should}" || exit 0
 
 . "${__type:?}/files/commands.sh"
 
-entry_marker=" # ${name}"
+entry_marker="  # ${name}"
 
 case ${state_should}
 in
@@ -83,7 +85,8 @@ in
 		;;
 esac
 
-# assert that $entry only has one line to avoid fucking up the crontab
+# assert that $entry only has one line (or is empty) to avoid fucking up the
+# crontab
 test "$(count_lines "${entry-}")" -le 1 || {
 	echo 'crontab entries must contain exactly one line.' >&2
 	exit 1

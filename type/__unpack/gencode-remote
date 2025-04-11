@@ -33,56 +33,202 @@ src="/${__object_id:?}"
 
 dst=$(sed 's/\/$//' "${__object:?}/parameter/destination")
 
-cmd=''
+cmdline="mkdir -p $(shquot "${dst}") && cd $(shquot "${dst}") && "
 
-case ${src}
-in
-    (*.tar|*.tgz|*.tar.*|*.txz|*.tbz2)
-        cmd="mkdir -p '${dst}' && tar --directory='${dst}' --extract --file='${src}'"
+f=${src}
+while :
+do
+    case ${f}
+    in
+        # https://git.savannah.gnu.org/cgit/tar.git/tree/src/suffix.c?h=release_1_34#n29
+        (*.tar|*.tgz|*.tar.*|*.txz|*.tbz2)
+            # NOTE: make sure the options work with all tar implementations (e.g. BusyBox)
+            if ${cmd_stdout?}
+            then
+                cmd=" | tar x"
+            else
+                cmd="tar xf $(shquot "${src}")"
+            fi
 
-        if [ -f "${__object:?}/parameter/tar-strip" ]
-        then
-            tar_strip=$(cat "${__object:?}/parameter/tar-strip")
+            if test -s "${__object:?}/parameter/tar-strip"
+            then
+                tar_strip=$(cat "${__object:?}/parameter/tar-strip")
 
-            cmd="${cmd} --strip-components=${tar_strip}"
-        fi
+                cmd="${cmd:?} --strip-components=${tar_strip}"
+            fi
 
-        if [ -f "${__object:?}/parameter/tar-extra-args" ]
-        then
-            tar_extra_args=$(cat "${__object:?}/parameter/tar-extra-args")
+            if test -s "${__object:?}/parameter/tar-extra-args"
+            then
+                tar_extra_args=$(cat "${__object:?}/parameter/tar-extra-args")
 
-            cmd="${cmd} ${tar_extra_args}"
-        fi
-        ;;
-    (*.7z)
-        case ${os}
-        in
-            (centos|almalinux|eurolinux|rocky|fedora|redhat)
-                cmd='7za'
+                cmd="${cmd:?} ${tar_extra_args}"
+            fi
+            cmd_stdout=false
+            cmdline=${cmdline:?}${cmd:?}
+            break
+            ;;
+        (*.7z)
+            case ${os}
+            in
+                (alpine)
+                    bin_7z='7z'
                 ;;
-            (*)
-                cmd='7zr'
+                (centos|almalinux|eurolinux|rocky|fedora|redhat)
+                    bin_7z='7za'
                 ;;
-        esac
+                (*)
+                    bin_7z='7zr'
+                ;;
+            esac
 
-        cmd="${cmd} e -aoa -o'${dst}' '${src}'"
-        ;;
-    (*.bz2)
-        cmd="bunzip2 --stdout '${src}' >'${dst}'"
-        ;;
-    (*.gz)
-        cmd="gunzip --stdout '${src}' >'${dst}'"
-        ;;
-    (*.lzma|*.xz)
-        cmd="xz --uncompress --stdout '${src}' >'${dst}'"
-        ;;
-    (*.rar)
-        cmd="unrar x -o+ '${src}' '${dst}/'"
-        ;;
-    (*.zip)
-        cmd="unzip -o '${src}' -d '${dst}'"
-        ;;
-esac
+            cmd="${bin_7z:?} e -aoa -o$(shquot "${dst}")"
+            if ${cmd_stdout?}
+            then
+                cmd=" | ${cmd:?}"
+            else
+                cmd="${cmd:?} $(shquot "${src}")"
+            fi
+            cmdline=${cmdline:?}${cmd:?}
+            cmd_stdout=false
+            break
+            ;;
+        (*.bz2)
+            cmd='bunzip2 -c'
+            if ${cmd_stdout?}
+            then
+                cmd=" | ${cmd:?}"
+            else
+                cmd="${cmd:?} $(shquot "${src}")"
+            fi
+            cmd_stdout=true
+            cmdline=${cmdline:?}${cmd:?}
+            ;;
+        (*.cpio)
+            cmd='cpio -i'
+            if ${cmd_stdout?}
+            then
+                cmd=" | ${cmd:?}"
+            else
+                cmd="${cmd:?} <$(shquot "${src}")"
+            fi
+            cmd_stdout=false
+            cmdline=${cmdline:?}${cmd:?}
+            ;;
+        (*.gz)
+            cmd='gunzip -c'
+            if ${cmd_stdout?}
+            then
+                cmd=" | ${cmd:?}"
+            else
+                cmd="${cmd:?} $(shquot "${src}")"
+            fi
+            cmd_stdout=true
+            cmdline=${cmdline:?}${cmd:?}
+            ;;
+        (*.lzma|*.xz)
+            cmd='xz -d -c'
+            if ${cmd_stdout?}
+            then
+                cmd=" | ${cmd:?}"
+            else
+                cmd="${cmd:?} $(shquot "${src}")"
+            fi
+            cmd_stdout=true
+            cmdline=${cmdline:?}${cmd:?}
+            ;;
+        (*.pax)
+            cmd='pax -r'
+            if ${cmd_stdout?}
+            then
+                cmd=" | ${cmd:?}"
+            else
+                cmd="${cmd:?} <$(shquot "${src}")"
+            fi
+            cmd_stdout=false
+            cmdline=${cmdline:?}${cmd:?}
+            break
+            ;;
+        (*.rar)
+            if ${cmd_stdout?}
+            then
+                # TODO: error or implement functionality
+                exit 1
+            fi
+            cmd="unrar x -o+ $(shquot "${src}") $(shquot "${dst}/")"
+            cmd_stdout=false
+            cmdline=${cmdline:?}${cmd:?}
+            break
+            ;;
+        (*.xar)
+            cmd='xar -x'
+            if ${cmd_stdout?}
+            then
+                cmd=" | ${cmd:?}"
+            else
+                cmd="${cmd:?} -f $(shquot "${src}")"
+            fi
+            cmd_stdout=false
+            cmdline=${cmdline:?}${cmd:?}
+            break
+            ;;
+        (*.Z)
+            case ${os}
+            in
+                (alpine)
+                    # use gzip(1)
+                    cmd='gunzip -k'
+                    if ${cmd_stdout?}
+                    then
+                        cmd=" | ${cmd:?}"
+                    else
+                        cmd="${cmd:?} $(shquot "${src}")"
+                    fi
+                    ;;
+                (*)
+                    # TODO: compatibility with AIX (possibly other) uncompress implementations
+                    cmd="uncompress -f -k"
+                    if ${cmd_stdout?}
+                    then
+                        cmd=" | ${cmd:?}"
+                    else
+                        cmd="${cmd:?} -- $(shquot "${src}")"
+                    fi
+                    ;;
+            esac
+            cmd_stdout=false
+            cmdline=${cmdline:?}${cmd:?}
+            break
+            ;;
+        (*.zip)
+            if ${cmd_stdout?}
+            then
+                # TODO: error or implement functionality
+                exit 1
+            fi
+            cmd="unzip -o $(shquot "${src}") -d $(shquot "${dst}")"
+            cmd_stdout=false
+            cmdline=${cmdline:?}${cmd:?}
+            break
+            ;;
+        (*.zstd)
+            cmd='zstd -d'
+            if ${cmd_stdout?}
+            then
+                cmd=" | ${cmd:?}"
+            else
+                cmd="${cmd:?} <$(shquot "${src}")"
+            fi
+            cmd_stdout=true
+            cmdline=${cmdline:?}${cmd:?}
+            ;;
+        (*)
+            # TODO: error message (unsupported format)
+            exit 1
+            ;;
+    esac
+    f=${f%.*}
+done
+unset -v f
 
 if [ -f "${__object:?}/parameter/backup-destination" ]
 then

@@ -18,42 +18,35 @@
 # along with skonfig-base. If not, see <http://www.gnu.org/licenses/>.
 #
 
-__package git --state present
-
-state_should=$(cat "${__object:?}/parameter/state")
-owner=$(cat "${__object:?}/parameter/owner")
-group=$(cat "${__object:?}/parameter/group")
-mode=$(cat "${__object:?}/parameter/mode")
-
-# Let __directory handle removal of git repos
+read -r state_should <"${__object:?}/parameter/state"
 
 case ${state_should}
 in
-    (present)
-        source=$(cat "${__object:?}/parameter/source")
-        case ${source}
-        in
-            (https://*)
-                os=$(cat "${__global:?}/explorer/os")
-                case ${os}
-                in
-                    (debian|devuan|ubuntu)
-                        __package_apt ca-certificates
-                        ;;
-                esac
-                ;;
-        esac
-        ;;
+	(present)
+		__package git
 
-    (absent)
-        __directory "${__object_id:?}" --state absent \
-            --owner "${owner}" \
-            --group "${group}" \
-            --mode "${mode}"
-        ;;
+		source=$(cat "${__object:?}/parameter/source")
+		case ${source}
+		in
+			(https://*)
+				os=$(cat "${__global:?}/explorer/os")
+				case ${os}
+				in
+					(debian|devuan|ubuntu)
+						__package_apt ca-certificates
+						;;
+				esac
+				;;
+		esac
+		;;
 
-    (*)
-        printf 'Invalid --state: %s\n' "${state_should}" >&2
-        exit 1
-        ;;
+	(absent)
+		# let __directory handle removal of git repos
+		__directory "${__object_id:?}" --state absent
+		;;
+
+	(*)
+		printf 'Invalid --state: %s\n' "${state_should}" >&2
+		exit 1
+		;;
 esac

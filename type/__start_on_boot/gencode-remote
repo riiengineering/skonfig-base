@@ -89,7 +89,7 @@ in
             case ${os}
             in
                 (debian|devuan|ubuntu)
-                    echo "update-rc.d -f '${name}' remove"
+                    echo "update-rc.d '${name}' defaults-disabled"
                     ;;
 
                 (alpine|gentoo)

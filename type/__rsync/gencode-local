@@ -26,18 +26,18 @@ EOF
 }
 
 command -v rsync >/dev/null 2>&1 || {
-    echo 'rsync is missing in local machine' >&2
+    echo 'rsync is not installed on the local machine' >&2
     exit 1
 }
 
 src=$(cat "${__object:?}/parameter/source")
 
 test -e "${src}" || {
-    echo "${src} not found" >&2
+    printf 'source not found: %s\n' "${src}" >&2
     exit 1
 }
 
-if [ -f "${__object:?}/parameter/destination" ]
+if test -s "${__object:?}/parameter/destination"
 then
     dst=$(cat "${__object:?}/parameter/destination")
 else
@@ -49,7 +49,7 @@ fi
 # because this is what you almost always want when
 # rsyncing two directories.
 
-if [ -d "${src}" ]
+if test -d "${src}"
 then
     case ${src}
     in
@@ -81,7 +81,7 @@ else
 	options='--links --perms --recursive --times'
 fi
 
-if [ -f "${__object:?}/parameter/option" ]
+if test -f "${__object:?}/parameter/option"
 then
     while read -r l
     do
@@ -93,24 +93,24 @@ then
     done <"${__object:?}/parameter/option"
 fi
 
-if [ -f "${__object:?}/parameter/owner" ] || [ -f "${__object:?}/parameter/group" ]
+if test -f "${__object:?}/parameter/owner" || test -f "${__object:?}/parameter/group"
 then
     options="${options} --chown="
 
-    if [ -f "${__object:?}/parameter/owner" ]
+    if test -f "${__object:?}/parameter/owner"
     then
         owner=$(cat "${__object:?}/parameter/owner")
         options="${options}$(shquot "${owner}")"
     fi
 
-    if [ -f "${__object:?}/parameter/group" ]
+    if test -f "${__object:?}/parameter/group"
     then
         group=$(cat "${__object:?}/parameter/group")
         options="${options}:$(shquot "${group}")"
     fi
 fi
 
-if [ -f "${__object:?}/parameter/mode" ]
+if test -f "${__object:?}/parameter/mode"
 then
     mode=$(cat "${__object:?}/parameter/mode")
     options="${options} --chmod=$(shquot "${mode}")"

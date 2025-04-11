@@ -77,8 +77,11 @@ in
                   close(devfile)
                   if (devno !~ "^(" ign_majors "):") print
                 }'
+        elif command -v fdisk >/dev/null 2>&1
+        then
+            fdisk -l | sed -n -e 's#^Disk /dev/\([^/:]*\): .*#\1#p'
         else
-            echo "Don't know how to list disks on Linux without lsblk and sysfs." >&2
+            echo "Don't know how to list disks on Linux without lsblk(8), fdisk(8), or sysfs(5)." >&2
             echo 'If you can, please submit a patch.'>&2
         fi
         ;;

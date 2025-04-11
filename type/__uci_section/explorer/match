@@ -1,6 +1,6 @@
 #!/bin/sh -e
 #
-# 2020 Dennis Camera (dennis.camera at riiengineering.ch)
+# 2020,2022 Dennis Camera (dennis.camera at riiengineering.ch)
 #
 # This file is part of skonfig-base.
 #
@@ -34,7 +34,7 @@ count_lines() (
 	set -f -- $*; echo $#
 )
 
-echo "${__object_id:?}" | grep -q -e '^[^.]\{1,\}\.[^.]\{1,\}$' || {
+echo "${__object_id:?}" | grep -q -e '^[[:alnum:]_-]\{1,\}\.[[:alnum:]_]\{1,\}$' || {
 	echo 'Section identifiers are a package and section name separated by a "." (period).' >&2
 	exit 1
 }
@@ -50,6 +50,7 @@ test -s "${__object:?}/parameter/type" || {
 }
 
 sect_type_param=$(cat "${__object:?}/parameter/type")
+# https://git.openwrt.org/?p=project/uci.git;a=blob;f=util.c;hb=f84f49f00fb70364f58b4cce72f1796a7190d370#l71
 expr "${sect_type_param}" : '[^.]\{1,\}\.[^.]\{1,\}$' >/dev/null 2>&1 || {
 	echo 'Section types are a package name and section type separated by a "." (period).' >&2
 	exit 1
@@ -77,28 +78,41 @@ then
 		}
 	fi
 
-	echo "${__object_id:?}"
+	printf '%s\n' "${__object_id:?}"
 	exit 0
 fi
 
 # No correctly named section exists already: find one to which --match applies
-regex="^${package_filter}\\.@${section_filter}\\[[0-9]\\{1,\\}\\]\\.${match%%=*}="
-
 matched_sections=$(
-	uci -s -N -d "${RS}" show "${package_filter}" 2>/dev/null \
-	| grep -e "${regex}" \
-	| while read -r _line
-	  do
-		  if test "${_line#*=}" = "${match#*=}"
-		  then
-			  echo "${_line}"
-		  fi
-	  done \
-	| sed -e 's/\.[^.]*=.*$//')
+	# NOTE: -X because the numbered sections may change across the cdist run
+	# uci: Entry not found
+
+	uci -s -N -X -d "${RS}" show "${package_filter}" 2>/dev/null \
+	| awk -v section_filter="${section_filter}" -v matchp="${match}" '
+	  /^'"${package_filter}"'\.[^.]+=/ {
+		  sect = substr($0, 1, index($0, "=") - 1)
+		  sectype = substr($0, index($0, "=") + 1)
+		  next
+	  }
+	  sectype == section_filter {
+		  sub(/^([^.]+\.){2}/, "")
+		  if ($0 == matchp) print sect
+	  }')
+
+	# uci -s -N -d "${RS}" show "${package_filter}" 2>/dev/null \
+	# | grep -e "${regex}" \
+	# | while read -r _line
+	#   do
+	# 	  if test "${_line#*=}" = "${match#*=}"
+	# 	  then
+	# 		  echo "${_line}"
+	# 	  fi
+	#   done \
+	# | sed -e 's/\.[^.]*=.*$//')
 
 test "$(count_lines "${matched_sections}")" -le 1 || {
 	printf 'Found multiple matching sections:\n%s\n' "${matched_sections}" >&2
 	exit 1
 }
 
-echo "${matched_sections}"
+printf '%s\n' "${matched_sections}"

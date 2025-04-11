@@ -22,9 +22,9 @@
 
 destination="/${__object_id:?}/.git"
 
-if [ -d "${destination}" ]
+if test -d "${destination}"
 then
-   echo present
+	echo present
 else
-   echo absent
+	echo absent
 fi

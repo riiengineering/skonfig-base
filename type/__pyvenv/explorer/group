@@ -18,7 +18,8 @@
 # You should have received a copy of the GNU General Public License
 # along with skonfig-base. If not, see <http://www.gnu.org/licenses/>.
 #
-# Prints the group owning the virtual env directory if it exists already.
+# Prints the current group (name or gid depending on the value of --owner)
+# owning the virtual env directory if it exists already.
 #
 
 destination="/${__object_id:?}"

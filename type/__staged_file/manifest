@@ -1,6 +1,7 @@
 #!/bin/sh -e
 #
 # 2015 Steven Armstrong (steven-cdist at armstrong.cc)
+# 2023 Dennis Camera (dennis.camera at riiengineering.ch)
 #
 # This file is part of skonfig-base.
 #
@@ -22,15 +23,19 @@ destination=${__object_id:?}
 stage_dir=$(cat "${__object:?}/parameter/stage-dir")
 stage_file="${stage_dir}/${destination}"
 
-set -- "/${destination}"
+set --
 for param in owner group mode state
 do
-   if [ -f "${__object:?}/parameter/${param}" ]
-   then
-      set -- "$@" "--${param}" "$(cat "${__object:?}/parameter/${param}")"
-   fi
+	if test -f "${__object:?}/parameter/${param}"
+	then
+		set -- "$@" "--${param}" "$(cat "${__object:?}/parameter/${param}")"
+	fi
 done
-set -- "$@" --source "${stage_file}"
 
-require="${__object_name:?}" \
-   __file "$@"
+if test -z "${__cdist_dry_run+x}"
+then
+	set -- "$@" --source "${stage_file}"
+fi
+
+require=${__object_name:?} \
+__file "/${destination:?}" "$@"

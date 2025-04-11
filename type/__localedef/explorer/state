@@ -50,10 +50,7 @@ parse_locale() {
 
 format_locale() {
 	# Usage: format_locale language codeset modifier
-	printf '%s' "$1"
-	test -z "$2" || printf '.%s' "$2"
-	test -z "$3" || printf '@%s' "$3"
-	printf '\n'
+	printf '%s%s%s\n' "$1" "${2:+.$2}" "${3:+@$3}"
 }
 
 gnu_normalize_codeset() {
