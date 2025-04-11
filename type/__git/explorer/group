@@ -19,10 +19,13 @@
 # You should have received a copy of the GNU General Public License
 # along with skonfig-base. If not, see <http://www.gnu.org/licenses/>.
 #
-# Prints the current group of the Git repository directory.
+# Prints the current group (name or gid depending on --group) of the Git
+# repository directory (.git).
 #
 
 destination="/${__object_id:?}/.git"
+
+test -d "${destination}" || exit 0
 
 # shellcheck disable=SC2012
 group_gid=$(ls -ldn "${destination}" | awk '{ print $4 }')
