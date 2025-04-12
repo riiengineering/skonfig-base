@@ -59,6 +59,7 @@ in
 		pkg_type='apt'
 		;;
 	(centos|fedora|redhat|scientific|oraclelinux)
+		# TODO: requires EPEL
 		pkg_type='yum'
 		;;
 	(*)

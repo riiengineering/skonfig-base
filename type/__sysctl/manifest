@@ -3,6 +3,7 @@
 # 2014 Steven Armstrong (steven-cdist at armstrong.cc)
 # 2018 Takashi Yoshi (takashi at yoshi.email)
 # 2019 Nico Schottelius (nico-cdist at schottelius.org)
+# 2024 Dennis Camera (dennis.camera at riiengineering.ch)
 #
 # This file is part of skonfig-base.
 #
@@ -27,11 +28,9 @@ case ${os}
 in
    # Linux
    (alpine|redhat|centos|almalinux|eurolinux|rocky|oraclelinux|ubuntu|debian|devuan|archlinux|coreos)
-      :
       ;;
    # BSD
    (freebsd|macosx|netbsd|openbsd)
-      :
       ;;
    (*)
       : "${__type:?}"  # make shellcheck happy
@@ -43,8 +42,9 @@ esac
 
 conf_path=$(cat "${__object:?}/explorer/conf-path")
 
-__key_value "${__object_name:?}" \
+# FIXME: work with comments (cf. /etc/sysctl.conf.dist on xterm)
+__key_value "${conf_path}:${__object_id:?}" \
+   --file "${conf_path:?}" \
+   --delimiter '=' \
    --key "${__object_id:?}" \
-   --file "${conf_path}" \
-   --value "$(cat "${__object:?}/parameter/value")" \
-   --delimiter '='
+   --value "$(cat "${__object:?}/parameter/value")"

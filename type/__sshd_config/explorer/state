@@ -93,8 +93,9 @@ fi
 || test "${state_should}" = absent || exit 0  # param optional if --state absent
 
 command -v sshd >/dev/null 2>&1 || {
-	echo 'Cannot find sshd.' >&2
-	exit 1
+	# no sshd -> no config
+	echo 'absent'
+	exit 0
 }
 
 test -e "${sshd_config_file}" || {

@@ -8,23 +8,32 @@ cdist-type__group - Manage groups
 
 DESCRIPTION
 -----------
-This cdist type allows you to create or modify groups on the target.
+This type allows you to create or modify groups on the target.
 
 
 OPTIONAL PARAMETERS
 -------------------
 gid
-   see groupmod(8)
+   cf. :strong:`groupmod`\ (8).
 password
    see above
 state
-   absent or present, defaults to present
+   One of:
+
+   ``present``
+      ...
+   ``absent``
+      ...
+
+   Defaults to: ``present``
 
 
 BOOLEAN PARAMETERS
 ------------------
 system
-   see groupadd(8), apply only on group creation
+   cf. :strong:`groupadd`\ (8).
+
+   :strong:`NB:` this parameter Applies only at group creation.
 
 
 MESSAGES
@@ -65,11 +74,12 @@ EXAMPLES
 AUTHORS
 -------
 * Steven Armstrong <steven-cdist--@--armstrong.cc>
+* Dennis Camera <dennis.camera--@--riiengineering.ch>
 
 
 COPYING
 -------
-Copyright \(C) 2011-2015 Steven Armstrong.
+Copyright \(C) 2011-2015 Steven Armstrong, 2024 Dennis Camera.
 You can redistribute it and/or modify it under the terms of the GNU General
 Public License as published by the Free Software Foundation, either version 3 of
 the License, or (at your option) any later version.

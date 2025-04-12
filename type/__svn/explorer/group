@@ -32,6 +32,8 @@ test -d "${destination}" || exit 0
 # shellcheck disable=SC2012
 group_gid=$(ls -ldn "${destination}" | awk '{ print $4 }')
 
+# FIXME
+
 # NOTE: +1 because $((notanum)) prints 0.
 if test $((group_gid + 1)) -ge 0
 then

@@ -23,16 +23,9 @@
 # All values are lower case.
 #
 
-
 # Operating systems are grouped into sections, with more popular ones
 # further up, except in cases where correct detection depends on a specific
 # order.
-
-if test -f /etc/cdist-preos
-then
-   echo cdist-preos
-   exit 0
-fi
 
 
 ### Debian and derivatives
@@ -93,6 +86,13 @@ then
    exit 0
 fi
 
+if test -f /etc/ovs-release
+then
+   # Oracle VM Server
+   echo ovs
+   exit 0
+fi
+
 if test -f /etc/oracle-release || test -f /etc/enterprise-release
 then
    echo oraclelinux
@@ -107,43 +107,36 @@ then
       exit 0
    fi
 
-   if grep -q '^Fedora ' /etc/redhat-release
-   then
-      echo fedora
-      exit 0
-   fi
-
-   if grep -q '^AlmaLinux ' /etc/redhat-release
-   then
-      echo almalinux
-      exit 0
-   fi
-
-   if grep -q '^Rocky Linux ' /etc/redhat-release
-   then
-      echo rocky
-      exit 0
-   fi
-
-   if grep -q '^EuroLinux ' /etc/redhat-release
-   then
-      echo eurolinux
-      exit 0
-   fi
-
-   if grep -q ^Scientific /etc/redhat-release
-   then
-      echo scientific
-      exit 0
-   fi
-
-   if grep -q ^Mitel /etc/redhat-release
-   then
-      echo mitel
-      exit 0
-   fi
-
-   echo redhat
+   case $(head -n1 /etc/redhat-release)
+   in
+      (AlmaLinux\ *)
+         echo almalinux ;;
+      (CentOS\ *)
+         echo centos ;;
+      (CloudLinux\ *)
+         echo cloudlinux ;;
+      (EuroLinux\ *)
+         echo eurolinux ;;
+      (Fedora\ *)
+         echo fedora ;;
+      (Mitel\ *)
+         echo mitel ;;
+      (Parallels\ Server\ Bare\ Metal\ *)
+         echo psbm ;;
+      (Rocky\ Linux\ *)
+         echo rocky ;;
+      (Scientific\ *)
+         echo scientific ;;
+      (VirtuozzoLinux\ *)
+         echo virtuozzo ;;
+      (XCP\ *)
+         echo xcp ;;
+      (XenServer\ *)
+         echo xenserver ;;
+      (*)
+         # fallback
+         echo redhat ;;
+   esac
    exit 0
 fi
 
@@ -164,6 +157,12 @@ fi
 
 
 ### other Linux distributions
+
+if test -f /etc/alpine-release
+then
+   echo alpine
+   exit 0
+fi
 
 if test -f /etc/gentoo-release
 then
@@ -213,7 +212,63 @@ then
    exit 0
 fi
 
+if test -f /etc/synoinfo.conf && test -f /etc/VERSION
+then
+   # Synology DiskStation Manager
+   echo dsm
+   exit 0
+fi
+
+if test -f /etc/manjaro-release
+then
+   echo manjaro
+   exit 0
+fi
+
+if test -f /etc/mageia-release
+then
+   echo mageia
+   exit 0
+fi
+
+if test -f /etc/mandrake-release
+then
+   echo mandrake
+   exit 0
+fi
+
+if test -f /etc/mandriva-release
+then
+   echo mandriva
+   exit 0
+fi
+
+if test -f /etc/altlinux-release
+then
+   echo altlinux
+   exit 0
+fi
+
+if test -f /etc/cdist-preos
+then
+   echo cdist-preos
+   exit 0
+fi
+
+
 # Appliances
+
+if test -f /etc/Eos-release
+then
+   echo aristaeos
+   exit 0
+fi
+
+if test -f /etc/vmware-release
+then
+   echo esx
+   exit 0
+fi
 
 if grep -q '^Check Point Gaia' /etc/cp-release 2>/dev/null
 then
@@ -278,3 +333,21 @@ fi
 
 echo 'Unknown OS' >&2
 exit 1
+
+if test -f /etc/bluewhite64-version
+then
+    echo bluewhite64
+    exit 0
+fi
+
+if test -f /etc/slamd64-version
+then
+    echo slamd64
+    exit 0
+fi
+
+if test -f /etc/meego-release
+then
+   echo meego
+   exit 0
+fi

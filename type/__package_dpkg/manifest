@@ -1,6 +1,7 @@
 #!/bin/sh -e
 #
 # 2013 Tomas Pospisek (tpo_deb at sourcepole.ch)
+# 2024 Dennis Camera (dennis.camera at riiengineering.ch)
 #
 # This file is part of skonfig-base.
 #
@@ -27,15 +28,25 @@
 # do any checks or --force'ing.
 
 
-state=$(cat "${__object:?}/parameter/state")
-package_path=$(cat "${__object:?}/parameter/source")
+state_should=$(cat "${__object:?}/parameter/state")
 package=$(basename "${__object_id:?}")
-state_is=$(cat "${__object:?}/explorer/pkg_state")
-state_should=''
 
-[ "${state}" = "absent" ] || state_should="${package}"
-[ "${state_is}" = "${state_should}" ] && exit 0
+case ${state_should}
+in
+	(present)
+		package_path=$(cat "${__object:?}/parameter/source")
 
-__file "/var/cache/apt/archives/${package}" \
-    --source "${package_path}" \
-    --state  "${state}"
+		if ! test -s "${__object:?}/explorer/pkg_state"
+		then
+			__file "/var/cache/apt/archives/${package}" \
+				--state "${state}" \
+				--source "${package_path}"
+		fi
+		;;
+	(absent)
+		;;
+	(*)
+		printf 'Invalid --state: %s\n' "${state_should}" >&2
+		exit 1
+		;;
+esac

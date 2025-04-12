@@ -32,6 +32,7 @@ test -d "${destination}" || exit 0
 # shellcheck disable=SC2012
 owner_uid=$(ls -ldn "${destination}" | awk '{ print $3 }')
 
+# FIXME
 # NOTE: +1 because $((notanum)) prints 0.
 if test $((owner_uid + 1)) -ge 0
 then
