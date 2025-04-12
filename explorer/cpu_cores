@@ -34,9 +34,10 @@ in
         ;;
     (macosx)
         sysctl -n hw.physicalcpu
+        #sysctl -n hw.availcpu
         ;;
     (openbsd)
-        sysctl -n hw.ncpuonline
+        sysctl -n hw.ncpu
         ;;
     (freebsd|netbsd)
         PATH=$(getconf PATH)

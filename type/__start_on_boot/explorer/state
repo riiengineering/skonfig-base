@@ -27,7 +27,7 @@ init=$("${__explorer:?}/init")
 target_runlevel=$(cat "${__object:?}/parameter/target_runlevel")
 name=${__object_id:?}
 
-if [ "${init}" = 'systemd' ]
+if test "${init}" = 'systemd'
 then
     # this handles ALL linux distros with systemd
     # e.g. archlinux, gentoo, new RHEL and SLES versions
@@ -38,11 +38,13 @@ then
 else
     case ${os}
     in
-        (debian|openwrt|devuan)
+        (debian|devuan|openwrt)
             state='absent'
-            for file in "/etc/rc${runlevel}.d/S"??"${name}"
+            # NOTE: OpenWrt does not have runlevels and services are linked into /etc/rc.d.
+            #       Ensure that the following line also works with empty $runlevel.
+            for file in "/etc/rc${runlevel-}.d/S"??"${name}"
             do
-                if [ -f "${file}" ]
+                if test -e "${file}"
                 then
                     state='present'
                     break
@@ -51,17 +53,20 @@ else
             ;;
         (ubuntu)
             state='absent'
-            for file in "/etc/rc${runlevel}.d/S"??"${name}"
+            for file in "/etc/rc$((runlevel)).d/S"??"${name}"
             do
-                if [ -f "${file}" ]
+                if test -e "${file}"
                 then
                     state='present'
                     break
                 fi
             done
 
-            [ -f "/etc/init/${name}.conf" ] && state='present'
-           ;;
+            if test -f "/etc/init/${name}.conf"
+            then
+                state='present'
+            fi
+            ;;
 
         (amazon|scientific|centos|almalinux|eurolinux|rocky|fedora|owl|redhat|oraclelinux)
             if chkconfig --level "${runlevel}" "${name}" >/dev/null 2>&1
@@ -73,19 +78,29 @@ else
             ;;
         (suse)
             # check for target if set, usable for boot. services in runlevel B
-            if [ "${target_runlevel}" != 'default' ]
+            case ${target_runlevel}
+            in
+                (default)
+                    ;;
+                (?*)
+                    runlevel=${target_runlevel} ;;
+            esac
+
+            # SuSE's chkconfig(?) has the same name as Red Hat's, but
+            # works differently...
+            # TODO: dafuq? how is this different from if chkconfig??
+            if chkconfig --check "${name}" "${runlevel}"
             then
-                runlevel=${target_runlevel}
+                state='present'
+            else
+                state='absent'
             fi
-            # suses chkconfig has the same name, but works different ...
-            state=$(chkconfig --check "${name}" "${runlevel}" || echo absent)
-            test -n "${state}" || state='present'
             ;;
         (gentoo|alpine)
             state='absent'
             for d in /etc/runlevels/*
             do
-                if [ -e "${d}/${name}" ]
+                if test -e "${d}/${name}"
                 then
                     state='present'
                     break
@@ -93,15 +108,23 @@ else
             done
             ;;
         (freebsd)
-            state='absent'
-            service -e | grep "/${name}$" && state='present'
+            if service "${name}" enabled
+            then
+                state='present'
+            else
+                state='absent'
+            fi
             ;;
         (openbsd)
-            state='absent'
             # OpenBSD 5.7 and higher
-            rcctl ls on | grep "^${name}$" && state='present'
+            if rcctl get "${name}" status
+            then
+                state='present'
+            else
+                state='absent'
+            fi
+            # rcctl ls on | grep -qxF -e "${name}" && state='present'
             ;;
-
         (*)
             printf 'Unsupported os: %s\n' "${os}" >&2
             exit 1

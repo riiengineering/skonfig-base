@@ -66,9 +66,11 @@ in
         else
             locale_conf='/etc/environment'
         fi
+        quote_value=true
         ;;
     (devuan)
         locale_conf='/etc/default/locale'
+        quote_value=true
         ;;
     (ubuntu)
         os_version=$(cat "${__global:?}/explorer/os_version")
@@ -79,6 +81,7 @@ in
         else
             locale_conf='/etc/environment'
         fi
+        quote_value=true
         ;;
     (archlinux)
         locale_conf='/etc/locale.conf'
@@ -95,6 +98,7 @@ in
         else
             locale_conf='/etc/sysconfig/i18n'
         fi
+        quote_value=true
         ;;
     (dsm)
         locale_conf='/etc/profile'
@@ -110,6 +114,7 @@ in
         else
             locale_conf='/etc/sysconfig/i18n'
         fi
+        quote_value=true
         ;;
     (gentoo)
         init=$(cat "${__global:?}/explorer/init")

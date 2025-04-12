@@ -26,7 +26,8 @@ os=$("${__explorer:?}/os")
 case ${os}
 in
     (macosx)
-        system_profiler SPHardwareDataType | grep -F 'Number of Processors' | awk -F': ' '{print $2}'
+        # system_profiler SPHardwareDataType | grep -F 'Number of Processors' | awk -F': ' '{print $2}'
+        sysctl -n hw.packages
         ;;
     (*)
         if test -r /proc/cpuinfo

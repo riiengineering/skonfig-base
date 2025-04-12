@@ -33,15 +33,11 @@ then
 	exit 1
 fi >&2
 
-check_errors() {
-	# reads stdin and forwards non-empty lines to stderr.
-	# returns 0 if stdin is empty, else 1.
-	! grep -e . >&2
-}
+# reads stdin and forwards non-empty lines to stderr.
+# returns 0 if stdin is empty, else 1.
+check_errors() { ! grep -e . >&2; }
 
-commit() {
-	uci commit
-}
+commit() { uci commit; }
 
 rollback() {
 	printf '\nAn error occurred when trying to commit UCI transaction!\n' >&2
@@ -62,7 +58,5 @@ rollback() {
 	return 1
 }
 
-uci_apply() {
-	# shellcheck disable=SC2015
-	uci batch 2>&1 | check_errors && commit || rollback
-}
+# shellcheck disable=SC2015
+uci_apply() { uci batch 2>&1 | check_errors && commit || rollback; }

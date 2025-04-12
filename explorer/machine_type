@@ -70,36 +70,29 @@ files_notsame() {
 	return 1
 }
 
-is_oneof() (
-	x=$1; shift
-	for y
-	do
-		test "${x}" = "${y}" || continue
-		return 0
-	done
-	return 1
-)
-
-tolower() { LC_ALL=C tr '[:upper:]' '[:lower:]'; }
+#tolower() { LC_ALL=C tr '[:upper:]' '[:lower:]'; }
+tolower() { awk '{ print tolower($0) }'; }
 
 # shellcheck disable=SC2086
 glob_exists() { set -- $1; test -e "$1"; }
 
 get_dmi_field() {
-	if is_oneof "${uname_s}" NetBSD
-	then
-		case $1
-		in
-			(system-manufacturer) _mib=machdep.dmi.system-vendor ;;
-			(system-product-name) _mib=machdep.dmi.system-product ;;
-			(system-version|system-uuid) _mib=machdep.dmi.$1 ;;
-			(bios-vendor|bios-version) _mib=machdep.dmi.$1 ;;
-			(biod-release-date) _mib=machdep.dmi.bios-date ;;
-			(*) _mib= ;;
-		esac
+	case ${uname_s}
+	in
+		(NetBSD)
+			case $1
+			in
+				(system-manufacturer) _mib=machdep.dmi.system-vendor ;;
+				(system-product-name) _mib=machdep.dmi.system-product ;;
+				(system-version|system-uuid) _mib=machdep.dmi.$1 ;;
+				(bios-vendor|bios-version) _mib=machdep.dmi.$1 ;;
+				(biod-release-date) _mib=machdep.dmi.bios-date ;;
+				(*) _mib= ;;
+			esac
 
-		test -n "${_mib}" && get_sysctl "${_mib}" | grep -e . && return
-	fi
+			test -n "${_mib}" && get_sysctl "${_mib}" | grep -e . && return
+			;;
+	esac
 
 	if is_command dmidecode
 	then
@@ -110,7 +103,7 @@ get_dmi_field() {
 		in
 			(system-manufacturer) _filename=sys_vendor ;;
 			(system-product-name) _filename=product_name ;;
-			(*) _filename=$(echo "$1" | tr - _) ;;
+			(*) _filename=$(echo "$1" | sed -e 'y/-/_/') ;;
 		esac
 		if test -r "${dmi_sysfs-}/${_filename}"
 		then
@@ -263,13 +256,13 @@ check_ct_pid_1() {
 		&& return 0
 	fi
 
-	if test -r /proc/1/environ
-	then
-		translate_container_name "$(
-			LC_ALL=C tr '\000' '\n' </proc/1/environ \
-			| sed -n -e 's/^container=//p')" \
-		&& return 0
-	fi
+	# if test -r /proc/1/environ
+	# then
+	# 	translate_container_name "$(
+	# 		LC_ALL=C tr '\000' '\n' </proc/1/environ \
+	# 		| sed -n -e 's/^container=//p')" \
+	# 	&& return 0
+	# fi
 
 	return 1
 }
@@ -513,11 +506,14 @@ check_vm_arch_specific() {
 			;;
 		(i?86|x86*|amd64|i86pc)
 			# VMM CPUID flag denotes that this system is running under a VMM
-			if is_oneof "${uname_s}" Darwin
-			then
-				get_sysctl machdep.cpu.features | tr ' ' '\n' | grep -qixF VMM \
-				&& return 0
-			fi
+			case ${uname_s}
+			in
+				(Darwin)
+					# XXX: grep -w?
+					get_sysctl machdep.cpu.features | tr ' ' '\n' | grep -qixF 'VMM' \
+					&& return 0
+					;;
+			esac
 			if has_cpuinfo \
 				&& grep -q -i -e '^flags[ 	]*:.* \(hypervisor\|vmm\)\( \|$\)' /proc/cpuinfo
 			then

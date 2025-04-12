@@ -85,6 +85,8 @@ printf '%s%s %s\n' "${mode}" "${match_only:+ [${match_only}]}" \
 	"${option_line}" >>"${__messages_out:?}"
 
 # Update sshd_config (remote code)
+#echo 'PATH=$(getconf PATH)'
+
 cat <<EOF
 awk $(drop_awk_comments "${__type:?}/files/update_sshd_config.awk") \\
 	-o ${mode} \\

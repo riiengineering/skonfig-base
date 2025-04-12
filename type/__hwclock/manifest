@@ -38,6 +38,7 @@ in
 		printf 'Invalid value for --mode: %s\n' "${mode}" >&2
 		printf 'Acceptable values are: UTC, localtime.\n' >&2
 		exit 1
+		;;
 esac
 
 
@@ -51,15 +52,14 @@ in
 			#       update /etc/conf.d if systemd is not installed.
 			# https://wiki.gentoo.org/wiki/System_time#Hardware_clock
 
-			export CDIST_ORDER_DEPENDENCY=true
 			__file /etc/conf.d/hwclock --state present \
 				--owner root --group root --mode 0644
+			require=__file/etc/conf.d/hwclock \
 			__key_value /etc/conf.d/hwclock:clock \
 				--file /etc/conf.d/hwclock \
-				--key clock \
 				--delimiter '=' --exact_delimiter \
+				--key 'clock' \
 				--value "\"$(${local_clock?} && echo local || echo UTC)\""
-			unset -v CDIST_ORDER_DEPENDENCY
 		fi
 		;;
 	(centos|fedora|redhat|scientific|oraclelinux)
@@ -136,15 +136,14 @@ in
 
 		if ${update_rcS?}
 		then
-			export CDIST_ORDER_DEPENDENCY=true
 			__file /etc/default/rcS --state present \
 				--owner root --group root --mode 0644
+			require=__file/etc/default/rcS \
 			__key_value /etc/default/rcS:UTC \
 				--file /etc/default/rcS \
-				--key UTC \
 				--delimiter '=' --exact_delimiter \
+				--key 'UTC' \
 				--value "$(${local_clock?} && echo no || echo yes)"
-			unset -v CDIST_ORDER_DEPENDENCY
 		fi
 		;;
 	(freebsd)
@@ -197,16 +196,14 @@ in
 		fi
 		;;
 	(void)
-		export CDIST_ORDER_DEPENDENCY=true
-		__file /etc/rc.conf \
-			--owner root --group root --mode 0644 \
-			--state present
+		__file /etc/rc.conf --state present \
+			--owner 0 --group 0 --mode 0644
+		require=__file/etc/rc.conf \
 		__key_value /etc/rc.conf:HARDWARECLOCK \
 			--file /etc/rc.conf \
 			--delimiter '=' --exact_delimiter \
-			--key HARDWARECLOCK \
+			--key 'HARDWARECLOCK' \
 			--value "\"$(${local_clock?} && echo localtime || echo UTC)\""
-		unset -v CDIST_ORDER_DEPENDENCY
 		;;
 	(*)
 		if ! ${has_systemd_timedatectl?}

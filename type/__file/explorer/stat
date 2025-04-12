@@ -42,11 +42,11 @@ fallback() {
 
 	printf 'type: %s\nowner: %d %s\ngroup: %d %s\nmode: %s %s\nsize: %d\nlinks: %d\n' \
 		"$("${__type_explorer:?}/type")" \
-		"${uid}" "${owner}" \
-		"${gid}" "${group}" \
+		$((uid)) "${owner}" \
+		$((gid)) "${group}" \
 		"${mode}" "${mode_text}" \
 		"${size}" \
-		"${links}"
+		$((links))
 }
 
 

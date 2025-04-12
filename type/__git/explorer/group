@@ -1,7 +1,7 @@
 #!/bin/sh -e
 #
 # 2013 contradict (contradict at gmail.com)
-# 2021 Dennis Camera (dennis.camera at riiengineering.ch)
+# 2021,2025 Dennis Camera (dennis.camera at riiengineering.ch)
 # 2021 Ander Punnar (ander at kvlt.ee)
 #
 # This file is part of skonfig-base.
@@ -19,10 +19,14 @@
 # You should have received a copy of the GNU General Public License
 # along with skonfig-base. If not, see <http://www.gnu.org/licenses/>.
 #
-# Prints the current group of the Git repository directory.
+# Prints the current group (name or gid depending on --group) of the Git
+# repository directory (.git).
 #
 
 destination="/${__object_id:?}/.git"
+
+# or test -e??
+test -d "${destination}" || exit 0
 
 # shellcheck disable=SC2012
 group_gid=$(ls -ldn "${destination}" | awk '{ print $4 }')

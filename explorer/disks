@@ -77,6 +77,9 @@ in
                   close(devfile)
                   if (devno !~ "^(" ign_majors "):") print
                 }'
+        elif command -v blkid >/dev/null 2>&1
+        then
+            blkid -o device | sed -e 's|^/dev||'
         else
             echo "Don't know how to list disks on Linux without lsblk and sysfs." >&2
             echo 'If you can, please submit a patch.'>&2

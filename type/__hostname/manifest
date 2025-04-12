@@ -209,7 +209,10 @@ in
             hostname_file=/etc/HOSTNAME
         fi
 
-        echo "${name_should}" | __file "${hostname_file}" --source -
+        echo "${name_should}" \
+        | __file "${hostname_file}" \
+              --owner 0 --group 0 --mode 0600 \
+              --source -
         ;;
     (*)
         # On other operating systems we fall back to systemd's

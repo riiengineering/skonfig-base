@@ -28,6 +28,8 @@
 #     no such option present in config file
 #
 
+#PATH=$(getconf PATH)
+
 joinlines() { sed -n -e H -e "\${x;s/^\\n//;s/\\n/${1:?}/g;p;}"; }
 trlower() { tr '[:upper:]' '[:lower:]'; }
 tolower() { printf '%s' "$*" | trlower; }
@@ -93,8 +95,9 @@ fi
 || test "${state_should}" = absent || exit 0  # param optional if --state absent
 
 command -v sshd >/dev/null 2>&1 || {
-	echo 'Cannot find sshd.' >&2
-	exit 1
+	# no sshd -> no config
+	echo 'absent'
+	exit 0
 }
 
 test -e "${sshd_config_file}" || {
