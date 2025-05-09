@@ -31,34 +31,26 @@ shquot() {
 	EOF
 }
 
-# Use short option names for portability
-shorten_property() {
-	case $1
-	in
-		(gid) echo '-g' ;;
-		(password) echo '-p' ;;
-		(system) echo '-r' ;;
-	esac
-}
-
+case ${os}
+in
+	(freebsd)
+		# shellcheck source=SCRIPTDIR/freebsd.sh
+		. "${__type:?}/gencode-remote/freebsd.sh" ;;
+	(netbsd|openbsd)
+		# shellcheck source=SCRIPTDIR/bsd_group.sh
+		. "${__type:?}/gencode-remote/bsd_group.sh" ;;
+	(*)
+		# shellcheck source=SCRIPTDIR/usermod.sh
+		. "${__type:?}/gencode-remote/usermod.sh" ;;
+esac
 
 case ${state_should}
 in
 	(present)
-		case ${os}
-		in
-			(freebsd)
-				supported_change_properties='gid'
-				;;
-			(*)
-				supported_change_properties='gid password'
-				;;
-		esac
-
 		if test -s "${__object:?}/explorer/group"
 		then
 			# change existing
-			for property in ${supported_change_properties}
+			for property in ${supported_change_properties:?}
 			do
 				if test -f "${__object:?}/parameter/${property}"
 				then
@@ -68,16 +60,16 @@ in
 					case ${property}
 					in
 						(password)
-							current_value=$(awk -F: '{ print $2 }' "${__object:?}/explorer/gshadow")
+							current_value=$(cut -d : -f 2 "${__object:?}/explorer/gshadow")
 							;;
 						(gid)
-							current_value=$(awk -F: '{ print $3 }' "${__object:?}/explorer/group")
+							current_value=$(cut -d : -f 3 "${__object:?}/explorer/group")
 							;;
 					esac
 
 					if test "${new_value}" != "${current_value}"
 					then
-						set -- "$@" "$(shorten_property "${property}")" "$(shquot "${new_value}")"
+						set -- "$@" "${property}"="${new_value}"
 						echo "change ${property} ${new_value} ${current_value}" >>"${__messages_out:?}"
 					fi
 				fi
@@ -85,62 +77,29 @@ in
 
 			if test $# -gt 0
 			then
-				case ${os}
-				in
-					(freebsd)
-						printf 'pw groupmod %s %s\n' "$*" "$(shquot "${name}")"
-						;;
-					(netbsd|openbsd)
-						printf 'group mod %s %s\n' "$*" "$(shquot "${name}")"
-						;;
-					(*)
-						printf 'groupmod %s %s\n' "$*" "$(shquot "${name}")"
-						;;
-				esac
+				do_modify_group "${name}" "$@"
 			fi
 			echo mod >>"${__messages_out:?}"
 		else
 			# create new
-			for property in ${supported_change_properties}
+			for property in ${supported_change_properties:?}
 			do
 				if test -f "${__object:?}/parameter/${property}"
 				then
 					new_value=$(cat "${__object:?}/parameter/${property}")
 
-					set -- "$@" "$(shorten_property "$property")" ${new_value:+\'"$new_value"\'}
+					set -- "$@" "${property}"${new_value:+="$new_value"}
 				fi
 			done
 
-			case ${os}
-			in
-				(freebsd)
-					printf 'pw groupadd %s %s\n' "$(shquot "${name}")" "$*"
-					;;
-				(netbsd|openbsd)
-					printf 'group add %s %s\n' "$*" "$(shquot "${name}")"
-					;;
-				(*)
-					printf 'groupadd %s %s\n' "$*" "$(shquot "${name}")"
-					;;
-			esac
+			do_create_group "${name}" "$@"
 		fi
 		;;
 	(absent)
 		if test -s "${__object:?}/explorer/group"
 		then
 			# delete existing
-			case ${os}
-			in
-				(freebsd)
-					printf 'pw groupdel %s\n' "$(shquot "${name}")"
-					;;
-				(netbsd|openbsd)
-					printf 'group del %s\n' "$(shquot "${name}")"
-					;;
-				(*)
-					printf 'groupdel %s\n' "$(shquot "${name}")"
-					;;
-			esac
+			do_delete_group "${name}"
 			echo remove >>"${__messages_out:?}"
 		fi
 		;;
