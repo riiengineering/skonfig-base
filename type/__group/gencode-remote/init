@@ -39,10 +39,16 @@ quote_ifneeded() {
 		fi
 	done
 	unset -v _arg
+
+	# NOTE: Use printf because POSIX echo interprets escape sequences
+	printf '%s' "$*"
 }
 
 case ${os}
 in
+	(aix)
+		# shellcheck source=SCRIPTDIR/aix.sh
+		. "${__type:?}/gencode-remote/aix.sh" ;;
 	(freebsd)
 		# shellcheck source=SCRIPTDIR/freebsd.sh
 		. "${__type:?}/gencode-remote/freebsd.sh" ;;
