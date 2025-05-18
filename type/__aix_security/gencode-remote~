@@ -1,0 +1,73 @@
+#!/bin/sh -e
+#
+# 2025 Dennis Camera (dennis.camera at riiengineering.ch)
+#
+# This file is part of skonfig.
+#
+# skonfig is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# skonfig is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with skonfig. If not, see <http://www.gnu.org/licenses/>.
+#
+
+shquot() {
+	sed -e "s/'/'\\\\''/g" -e "1s/^/'/" -e "\$s/\$/'/" <<-EOF
+	$*
+	EOF
+}
+
+current_value() {
+	awk -F= -v attr="${1:?}" '
+	$1 == attr { print substr($0, length($1)+2); exit }
+	' "${__object:?}/explorer/values"
+}
+state_should=$(cat "${__object:?}/parameter/state")
+
+file=$(cat "${__object:?}/parameter/file")
+stanza=$(cat "${__object:?}/parameter/stanza")
+
+test -s "${__object:?}/parameter/attribute" || exit 0
+
+while read -r _attribute_and_value
+do
+	{
+	case ${_attribute_and_value}
+	in
+		(*=*)
+			_attribute=${_attribute_and_value%%=*}
+			_value_should=${_attribute_and_value#*=}
+
+			if test "${state_should}" = 'absent'
+			then
+				_value_should=
+			fi
+			;;
+		(*)
+			# no value, only permissible if --state absent
+			test "${state_should}" = 'absent' || {
+				printf 'Attribute %s is missing a value. This is only permissible if --state absent.\n' "${_attribute}" >&2
+				exit 1
+			}
+
+			_attribute=${_attribute_and_value}
+			_value_should=
+			;;
+	esac
+
+	if test "$(current_value "${_attribute}")" != "${_value_should}"
+	then
+		printf 'chsec -f %s -s %s -a %s\n' \
+			"$(shquot "${file}")" \
+			"$(shquot "${stanza}")" \
+			"$(shquot "${_attribute}")=$(shquot "${_value_should}")"
+	fi
+	} </dev/null
+done <"${__object:?}/parameter/attribute"
