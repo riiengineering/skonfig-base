@@ -30,8 +30,6 @@ shorten_usermod_property() {
 			echo '-d' ;;
 		(gid)
 			echo '-g' ;;
-		(groups)
-			echo '-G' ;;
 		(password)
 			echo '-p' ;;
 		(shell)

@@ -32,7 +32,7 @@ quote_ifneeded() {
 	for _arg
 	do
 		shift
-		if test -n "$(printf %s "${_arg}" | tr -d -c '\t\n \042-\047\050-\052\073-\077\133\\`|~' | tr -c '' '.')"
+		if test -z "${_arg}" || test -n "$(printf %s "${_arg}" | tr -d -c '\t\n \042-\047\050-\052\073-\077\133\\`|~' | tr -c '' '.')"
 		then
 			# needs quoting
 			set -- "$@" "'$(printf '%s\n' "${_arg}" | sed -e "s/'/'\\\\''/g")'"
@@ -157,6 +157,10 @@ in
 						continue ;;
 					(state)
 						continue ;;
+					(comment|gid|home|password|shell|uid)
+						# this parameter requires a value
+						set -- "$@" "${property}"="$(cat "${property}")"
+						;;
 					(*)
 						new_value=$(cat "${property}")
 
