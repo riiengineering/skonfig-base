@@ -27,8 +27,22 @@ os=$("${__explorer:?}/os")
 case ${os}
 in
     (aix)
-        lparstat \
-        | sed -n -e 's/^System configuration:.*psize=\([0-9]\{1,\}\).*/\1/p'
+		ncpus=$(
+			lparstat -i \
+			| sed -n -e 's/^Maximum Virtual CPUs[[:blank:]]*:[[:blank:]]*//p')
+
+		# the number of SMT threads is averaged out. Don’t know if different
+		# CPUs/sockets can have a different amount of SMT threads.
+		smt=$(
+			smtctl | awk '
+			/^proc[0-9]* has .* SMT threads/ {
+				match($0, "[0-9]+ SMT threads")
+				smt += int(substr($0, RSTART, RLENGTH))
+				ncpus++
+			}
+			END { print (smt / ncpus) }')
+
+		echo $((ncpus * smt))
         ;;
     (beos)
         sysinfo -cpu | grep -c '^CPU #[0-9][0-9]*'
