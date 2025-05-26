@@ -35,6 +35,16 @@
 # shellcheck source=SCRIPTDIR/usermod.sh
 . "${__type:?}/gencode-remote/usermod.sh"
 
+aix_chpasswd() {
+	test -n "${2-}" || {
+		echo 'Setting empty passwords is not supported on AIX.' >&2
+		exit 1
+	}
+	printf "chpasswd -e -c <<'EOF'\\n%s:%s\\nEOF\\n" \
+		"${1:?}" \
+		"${2:?}"
+}
+
 do_create_user() {
 	# usage: do_create_user name property[=value]
 
@@ -51,10 +61,6 @@ do_create_user() {
 				# special handling required
 				__do_password=${__do_arg#'password='}
 				shift
-
-				# TODO: remove when implemented
-				echo 'Setting the password is not yet supported on AIX.' >&2
-				exit 1
 				;;
 		esac
 	done
@@ -62,15 +68,13 @@ do_create_user() {
 
 	__do_argv=$(properties_to_usermod_argv "$@")
 
+	# create user account
 	printf 'useradd%s %s\n' \
 		"${__do_argv:+ ${__do_argv}}" \
 		"$(quote_ifneeded "${__do_user:?}")"
 
-	if test -n "${__do_password-}"
-	then
-		# set user password
-		:  # TODO
-	fi
+	# set user password
+	${__do_password+aix_chpasswd "${__do_user:?}" "${__do_passwd:?}"}
 
 	unset -v __do_user __do_password __do_argv
 }
@@ -91,10 +95,6 @@ do_modify_user() {
 				# special handling required
 				__do_password=${__do_arg#'password='}
 				shift
-
-				# TODO: remove when implemented
-				echo 'Setting the password is not yet supported on AIX.' >&2
-				exit 1
 				;;
 		esac
 	done
@@ -102,15 +102,13 @@ do_modify_user() {
 
 	__do_argv=$(properties_to_usermod_argv "$@")
 
+	# modify user account
 	printf 'usermod%s %s\n' \
 		"${__do_argv:+ ${__do_argv}}" \
 		"$(quote_ifneeded "${__do_user:?}")"
 
-	if test -n "${__do_password-}"
-	then
-		# update user password
-		:  # TODO
-	fi
+	# update user password
+	${__do_password+aix_chpasswd "${__do_user:?}" "${__do_passwd:?}"}
 
 	unset -v __do_user __do_password __do_argv
 }
