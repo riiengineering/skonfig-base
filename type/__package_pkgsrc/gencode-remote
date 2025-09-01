@@ -1,0 +1,79 @@
+#!/bin/sh -e
+#
+# 2025 Dennis Camera (dennis.camera at riiengineering.ch)
+#
+# This file is part of skonfig.
+#
+# skonfig is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# skonfig is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with skonfig. If not, see <http://www.gnu.org/licenses/>.
+#
+
+pkg_install_base=/usr/sbin
+
+shquot() {
+	sed -e "s/'/'\\\\''/g" -e "1s/^/'/" -e "\$s/\$/'/" <<-EOF
+	$*
+	EOF
+}
+
+read -r state_is auto_is <"${__object:?}/explorer/state" || :
+state_should=$(cat "${__object:?}/parameter/state")
+
+# if state change is required, or the package was automatically installed
+# changes are necessary, otherwise nothing to do.
+test "${state_is}" != "${state_should}" \
+|| test "${state_should} ${auto_is}" = 'present auto' \
+|| exit 0
+
+if test -s "${__object:?}/parameter/name"
+then
+	name=$(cat "${__object:?}/parameter/name")
+else
+	name=${__object_id:?}
+fi
+
+if test -s "${__object:?}/parameter/version"
+then
+	version=$(cat "${__object:?}/parameter/version")
+	case ${version}
+	in
+		('<'*|'>'*)
+			;;
+		(*)
+			version=-${version} ;;
+	esac
+fi
+
+pkgid=${name}${version-}
+
+case ${state_should}
+in
+	(present)
+		case ${state_is}/${auto_is}
+		in
+			(present/auto)
+				# mark user installed
+				printf '%s/pkg_admin unset automatic\n' "${pkg_install_base:?}"
+				;;
+			(present/*)
+				;;
+			(*)
+				printf '%s/pkg_add %s\n' "${pkg_install_base:?}" "$(shquot "${pkgid}")"
+				;;
+		esac
+		;;
+	(absent)
+		# XXX: should we add -A?
+		printf '%s/pkg_delete -A %s\n' "${pkg_install_base:?}" "$(shquot "${pkgid}")"
+		;;
+esac
