@@ -28,13 +28,12 @@
 # e.g.
 # container
 # container on lxc
-# virtual by kvm-spapr
+# virtual by kvm
 #
 # The third word of each line (except the first) can be composed of different
 # parts concatenated with a `-' (minus) character, with each component being
 # a specification of the previous, e.g.:
 #  - lxc-libvirt             (LXC container, managed by libvirt)
-#  - lpar-s390 / lpar-power  (LPAR running on IBM S/390 or POWER, respectively)
 #  - xen-hvm / xen-pv        (Xen HVM vs para-virtualization)
 #
 # If this explorer cannot collect enough information about virtualization it
@@ -410,18 +409,15 @@ check_vm_cpuinfo() {
 	then
 		# User Mode Linux
 		echo uml
-	elif grep -q -e '^vendor_id.*: PowerVM Lx86' /proc/cpuinfo
-	then
-		# IBM PowerVM Lx86 (Linux/x86 emulator)
-		echo powervm_lx86
 	elif grep -q -e '^vendor_id.*: IBM/S390' /proc/cpuinfo
 	then
-		# IBM SystemZ (S/390)
+		# IBM Z (S/390)
 		if test -f /proc/sysinfo
 		then
+			# https://www.ibm.com/docs/en/linux-on-systems?topic=86-hypervisors
 			if grep -q -e '^VM[0-9]* Control Program: KVM/Linux' /proc/sysinfo
 			then
-				echo kvm-s390
+				echo kvm
 				return 0
 			elif grep -q -e '^VM[0-9]* Control Program: z/VM' /proc/sysinfo
 			then
@@ -429,11 +425,16 @@ check_vm_cpuinfo() {
 				return 0
 			elif grep -q -e '^LPAR ' /proc/sysinfo
 			then
-				echo zvm-lpar
+				# IBM Z PR/SM (Processor Resource/Systems Manager) LPAR
+				echo prsm
 				return 0
 			fi
 		fi
 		return 1
+	elif grep -q -e '^vendor_id.*: PowerVM Lx86' /proc/cpuinfo
+	then
+		# IBM PowerVM Lx86 (Linux/x86 emulator)
+		echo powervm_lx86
 	else
 		if grep -q -e '^model name.*:' /proc/cpuinfo
 		then
@@ -495,7 +496,7 @@ check_vm_arch_specific() {
 					return 1
 				else
 					# guest LDom
-					echo ldom-sparc
+					echo ldom
 				fi
 
 				# MDPROP=/usr/lib/ldoms/mdprop.py
@@ -777,8 +778,8 @@ check_vm_dt() {
 			if test -d /proc/device-tree/hypervisor \
 				&& grep -qF 'linux,kvm' /proc/device-tree/hypervisor/compatible
 			then
-				# We are running as a spapr KVM guest on ppc64
-				echo kvm-spapr
+				# sPAPR KVM guest on ppc64 (KVM on Linux, PowerKVM)
+				echo kvm
 				return 0
 			fi
 			if test -r /proc/device-tree/ibm,partition-name \
