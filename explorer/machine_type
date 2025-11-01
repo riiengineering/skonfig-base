@@ -393,6 +393,8 @@ check_vm_systemd() (
 			echo hyperv ;;
 		('oracle')
 			echo virtualbox ;;
+		('powervm')
+			echo powervm ;;
 		('vm-other')
 			return 0 ;;
 		(*)
