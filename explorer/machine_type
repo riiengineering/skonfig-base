@@ -460,28 +460,26 @@ check_vm_arch_specific() {
 	case ${arch}
 	in
 		(ppc64|ppc64le)
-			# Check PPC64 LPAR, KVM
+			# Check PowerVM LPAR, KVM
 
-			# example /proc/cpuinfo line indicating 'not baremetal'
-			# platform	: pSeries
+			# be careful with /proc/ppc64/lparcfg, it also exists for KVM VMs.
 			#
-			# example /proc/ppc64/lparcfg systemtype line
+			# QEMU:
 			# system_type=IBM pSeries (emulated by qemu)
-
-			if has_cpuinfo && grep -q -e 'platform.**pSeries' /proc/cpuinfo
+			#
+			# PowerVM:
+			# system_type=IBM,9080-HEU
+			#
+			# Further, check for some "indicative" PowerVM-specific values.
+			if test -r /proc/ppc64/lparcfg \
+				&& ! grep -qi '^system_type=.*qemu' /proc/ppc64/lparcfg \
+				&& grep -q \
+					-e '^capped=' \
+					-e '^capacity_weight=' \
+					/proc/ppc64/lparcfg
 			then
-				if test -e /proc/ppc64/lparcfg
-				then
-					# Assume LPAR, now detect shared or dedicated
-					if grep -q -x -F 'shared_processor_mode=1' /proc/ppc64/lparcfg
-					then
-						echo powervm-shared
-						return 0
-					else
-						echo powervm-dedicated
-						return 0
-					fi
-				fi
+				echo powervm
+				return 0
 			fi
 			;;
 		(sparc*)
@@ -769,6 +767,7 @@ check_vm_dt() {
 			fi
 			if grep -q -F 'dummy-virt' /proc/device-tree/compatible
 			then
+				# kvmtool
 				echo lkvm
 				return 0
 			fi
@@ -780,12 +779,10 @@ check_vm_dt() {
 				# sPAPR KVM guest on ppc64 (KVM on Linux, PowerKVM)
 				echo kvm
 				return 0
-			fi
-			if test -r /proc/device-tree/ibm,partition-name \
-				&& test -r /proc/device-tree/hmc-managed\? \
-				&& test -r /proc/device-tree/chosen/qemu,graphic-width
+			elif test -f /proc/device-tree/ibm,powervm-partition
 			then
 				echo powervm
+				exit 0
 			fi
 			;;
 	esac
