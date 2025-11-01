@@ -245,10 +245,15 @@ translate_container_name() {
 			echo lxc ;;
 		('lxc-libvirt')
 			echo lxc-libvirt ;;
+		('oci')
+			echo oci ;;
 		('podman')
 			echo podman ;;
 		('systemd-nspawn')
 			echo systemd_nspawn ;;
+		('zone')
+			# Solaris/Illumos "lx" branded zone
+			echo brandz ;;
 		(*)
 			return 1 ;;
 	esac
