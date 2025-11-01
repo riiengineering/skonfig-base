@@ -404,8 +404,7 @@ check_vm_systemd() (
 has_vm_cpuinfo() { has_cpuinfo; }
 
 check_vm_cpuinfo() {
-	if grep -q -F 'User Mode Linux' /proc/cpuinfo \
-		|| grep -q -F 'UML' /proc/cpuinfo
+	if grep -q -F -e 'User Mode Linux' -e 'UML' /proc/cpuinfo
 	then
 		# User Mode Linux
 		echo uml
@@ -448,7 +447,7 @@ check_vm_cpuinfo() {
 			| awk '
 			  { if ($1 > most_c) { most_c = $1; most_s = $2 } }
 			  END {
-				if (most_s) print most_s
+				if (most_s) { print most_s }
 				exit !most_s
 			  }' \
 			&& return 0
@@ -790,6 +789,15 @@ check_vm_dt() {
 			fi
 			;;
 	esac
+
+	if test -r /proc/device-tree/compatible \
+		&& grep -q '^qemu,' /proc/device-tree/compatible \
+		|| test -r /proc/device-tree/chosen/qemu,boot-list
+	then
+		echo qemu
+		return 0
+	fi
+
 	return 1
 }
 
@@ -934,6 +942,9 @@ check_vm_os_specific() {
 							return 0
 							;;
 						(lpar:*' under hypervisor')
+							# not a clear indication, as this dmesg line is also
+							# logged in KVM VMs
+							# Report just a "generic" VM.
 							return 0 ;;
 					esac
 				done <<-EOF
